@@ -1,60 +1,145 @@
-# METABRIC Breast Cancer Survival Analysis & Machine Learning
+# METABRIC Survival Dashboard
 
-This repository contains an end-to-end data science pipeline analyzing the **METABRIC** (Molecular Taxonomy of Breast Cancer International Consortium) dataset. The project blends traditional biostatistics (survival analysis) with modern machine learning to uncover key clinical and genomic factors associated with breast cancer survival and to predict 5-year patient outcomes.
+Survival analysis and machine learning prediction on breast cancer, based on the
+METABRIC (Molecular Taxonomy of Breast Cancer International Consortium) dataset.
+
+## Research Questions
+
+1. **Survival analysis** — Which clinical and genomic factors are associated with
+   the overall survival of breast cancer patients?
+2. **Machine learning** — Can 5-year survival be predicted from multimodal data
+   (clinical + genomic)?
+
+## Dataset
+
+- **Name**: Breast Cancer Gene Expression Profiles (METABRIC)
+- **Source**: [Kaggle — raghadalharbi/breast-cancer-gene-expression-profiles-metabric](https://www.kaggle.com/datasets/raghadalharbi/breast-cancer-gene-expression-profiles-metabric)
+- **Size**: 1,904 patients, 693 variables (clinical, biomarkers, treatments, gene
+  expression, gene mutations)
+
+The raw CSV is not included in this repository (see [`.gitignore`](.gitignore)).
+Download `METABRIC_RNA_Mutation.csv` from Kaggle and place it in `data/` before
+running the notebooks.
 
 ## Project Structure
 
-```text
+```
+.
 ├── data/
-│   └── METABRIC_RNA_Mutation.csv       # Raw dataset (1,904 patients, 693 variables)
+│   ├── METABRIC_RNA_Mutation.csv        # raw dataset (download separately, not versioned)
+│   └── processed/
+│       ├── df_survival.csv              # clinical vars + biomarkers + top 25 genes (KM / Cox)
+│       └── df_ml.csv                    # clinical vars + biomarkers + top 50 genes (ML)
 ├── notebooks/
-│   ├── 01_exploration.ipynb            # Exploratory Data Analysis & target recoding strategy
-│   ├── 02_preprocessing.ipynb          # Data cleaning, log1p transform, pipeline & feature selection
-│   ├── 03_kaplan_meier.ipynb           # Stratified survival curves (ER, HER2, treatments, etc.)
-│   ├── 04_cox_model.ipynb              # Univariate & Multivariate Cox Proportional Hazards modeling
-│   └── 05_ml_prediction.ipynb          # 5-Year survival prediction (Random Forest & XGBoost)
-├── outputs/
-│   ├── df_survival.csv                 # Cleaned clinical data + top 25 genes for survival models
-│   └── df_ml.csv                       # Fully imputed, encoded matrix + top 50 genes for ML models
+│   ├── 01_exploration.ipynb             # EDA: types, outliers, missing values, distributions
+│   ├── 02_preprocessing.ipynb           # cleaning, encoding, imputation, feature selection
+│   ├── 03_kaplan_meier.ipynb            # KM curves by subgroup, log-rank tests
+│   ├── 04_cox_model.ipynb               # univariate / multivariate Cox model, hazard ratios
+│   └── 05_ml_prediction.ipynb           # 5-year survival classification (RF, XGBoost)
 ├── streamlit_app/
-│   ├── rf_model.joblib                 # Serialized Random Forest classifier
-│   └── feature_cols.joblib             # Saved list of matching feature columns
-├── README.md
-└── .gitignore
+│   ├── app.py                           # interactive dashboard
+│   ├── rf_model.joblib                  # trained Random Forest model
+│   └── feature_cols.joblib              # feature column order expected by the model
+├── requirements.txt
+├── .gitignore
+└── README.md
+```
 
-Notebooks Workflow & Insights
-01 — Exploratory Data Analysis (01_exploration.ipynb)
-Target Assessment: Identified that overall_survival uses an inverse encoding convention (0 = Deceased, 1 = Alive/Censored). Planned a recoding strategy (event = 1 - overall_survival) to fit standard survival libraries.
+## Methodology
 
-Missing Not At Random (MNAR): Detected that tumor_stage has a 26.3% missing rate with heavy bias towards deceased patients. Decision made to exclude it and use the Nottingham Prognostic Index (NPI) as a proxy.
+### 1. Exploration (`01_exploration.ipynb`)
+General overview, variable-block separation (clinical / biomarkers / treatments /
+gene expression / mutations), target-variable encoding check, outlier inspection,
+and missing-value mechanism analysis (MCAR / MAR / MNAR).
 
-Outlier Strategy: Plotted and identified right-skewed distributions in tumor_size and mutation_count (hypermutator phenotypes), leading to a planned log-transformation.
+### 2. Preprocessing (`02_preprocessing.ipynb`)
+- Recoding of the target: `event = 1 - overall_survival` to match the `lifelines`
+  convention.
+- Exclusion of unusable variables (data leakage, MNAR, duplicated information).
+- `log1p` transform on skewed variables (`tumor_size`, `mutation_count`).
+- Binarization of mutation columns (variant name → presence/absence).
+- Imputation, encoding, and scaling via a `scikit-learn` `ColumnTransformer` pipeline.
+- Genomic feature selection (`VarianceThreshold` + correlation with survival) to
+  reduce ~660 genomic variables down to the top 25 (survival analysis) / top 50
+  (ML) genes.
+- Export of `df_survival.csv` and `df_ml.csv`.
 
-02 — Preprocessing (02_preprocessing.ipynb)
-Feature Engineering: Implemented the event mapping and binarized 173 _mut columns to track the simple presence or absence of mutations.
+### 3. Kaplan-Meier survival analysis (`03_kaplan_meier.ipynb`)
+Survival curves and log-rank tests stratified by ER status, HER2 status, PR
+status, histologic grade, chemotherapy, and hormone therapy.
 
-Transformation Pipeline: Applied np.log1p to highly skewed features. Built an automated ColumnTransformer handling numerical imputation (SimpleImputer(strategy='median') + StandardScaler) and categorical encoding (OneHotEncoder).
+### 4. Cox Proportional Hazards model (`04_cox_model.ipynb`)
+Univariate and multivariate Cox regression to identify factors independently
+associated with survival, hazard-ratio forest plot, and a proportional-hazards
+assumption check via Schoenfeld residuals.
 
-Genomic Feature Selection: Compressed the heavy genomic space from 662 initial molecular attributes down to the top 25 genes (for survival data) and top 50 genes (for ML matrices) using variance thresholds and correlation filtering.
+### 5. ML prediction (`05_ml_prediction.ipynb`)
+Binary classification of 5-year survival (`survived_5y`) using a Random Forest
+and XGBoost, benchmarked against a `DummyClassifier` baseline.
 
-03 — Kaplan-Meier Survival Analysis (03_kaplan_meier.ipynb)
-Stratified Logs: Analyzed non-parametric curves across major clinical subsets.
+## Key Results
 
-Key Findings: Validated that ER+, PR+, and lower histologic grades are linked to significantly higher long-term survival. Noted that ER status curves cross later in time, signaling a potential violation of the proportional hazards assumption. Noted indication bias in chemotherapy lines, necessitating multivariate adjustment.
+| Model | ROC-AUC | Accuracy | Survivor Recall | Deceased Recall |
+|---|---|---|---|---|
+| Baseline (Dummy) | 0.500 | 60% | 0% | 100% |
+| **Random Forest** | **0.759** | **73%** | **63%** | **79%** |
+| XGBoost | 0.731 | 69% | 61% | 74% |
 
-04 — Cox Proportional Hazards Model (04_cox_model.ipynb)
-Multivariate Adjustment: Built univariate models followed by a comprehensive multivariate Cox model to estimate adjusted Hazard Ratios (HR).
+Random Forest is retained as the production model in the Streamlit app for its
+robustness out-of-the-box.
 
-Hypothesis Testing: Performed Schoenfeld residual tests to evaluate the proportional hazards assumption. Confirmed that classic parameters (tumor_size, positive lymph nodes) remain dominant independent hazards.
+| Variable (Kaplan-Meier) | Log-rank p-value | Proportional hazards |
+|---|---|---|
+| ER Status | 0.02 | ⚠️ curves cross (late relapse) |
+| HER2 Status | 2.22e-05 | ✅ |
+| PR Status | 7.45e-05 | ✅ |
+| Histologic Grade | 1.14e-03 | ✅ |
+| Chemotherapy | 7.26e-03 | ⚠️ indication bias |
+| Hormone Therapy | 1.13e-04 | ⚠️ reverse indication bias |
 
-05 — Machine Learning Prediction (05_ml_prediction.ipynb)
-Classification Framework: Converted the continuous timeline into a binary classification task: 5-Year Survival (survived_5y), preserving a robust, balanced cohort (58% vs 42%).
+## Installation
 
-Model Benchmark: Trained a baseline dummy classifier, an optimized Random Forest, and an XGBoost algorithm.
+```bash
+git clone <repo-url>
+cd <repo-name>
+python -m venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
 
-Deployment Prep: Evaluated feature importances and saved the best-performing model (rf_model.joblib) along with its feature names to feed an interactive Streamlit application.
+Download `METABRIC_RNA_Mutation.csv` from Kaggle and place it in `data/`.
 
-Requirements & Environment
-To reproduce the analysis and run the notebooks locally, install the required packages:
+## Usage
 
-pip install pandas numpy scikit-learn matplotlib seaborn lifelines joblib
+### Run the notebooks
+
+Notebooks must be run in order (each one depends on the outputs of the previous
+one):
+
+```bash
+jupyter notebook notebooks/01_exploration.ipynb
+```
+
+Run `01` → `02` → `03` / `04` (independent) → `05`.
+
+### Run the dashboard
+
+```bash
+cd streamlit_app
+streamlit run app.py
+```
+
+The dashboard has three pages: **Home** (cohort overview), **Survival Analysis**
+(interactive Kaplan-Meier curves), and **ML Prediction** (5-year survival
+estimator for a custom patient profile).
+
+## Disclaimer
+
+⚠️ This project is for **educational purposes only**. The model is trained on
+historical data (METABRIC, 2000–2010) and is **not a clinical decision-making
+tool**.
+
+## Author
+
+**Juliette Bouli-Mengue**
+Clinical Research Associate → Healthcare Data Science
