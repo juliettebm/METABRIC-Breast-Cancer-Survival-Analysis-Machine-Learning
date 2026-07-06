@@ -1,0 +1,33 @@
+### 2. Generated `.gitignore`
+
+```ini
+# Byte-compiled / optimized / DLL support
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Data and large pipeline exports (Never commit heavy files)
+data/
+outputs/
+*.csv
+*.xlsx
+*.parquet
+
+# Machine learning model binaries
+*.joblib
+*.pkl
+*.pickle
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+.env
+
+# Operating System temporary files
+.DS_Store
+Thumbs.db
