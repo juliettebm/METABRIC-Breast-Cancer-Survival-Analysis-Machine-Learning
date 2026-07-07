@@ -36,6 +36,7 @@ running the notebooks.
 │   ├── 03_kaplan_meier.ipynb            # KM curves by subgroup, log-rank tests
 │   ├── 04_cox_model.ipynb               # univariate / multivariate Cox model, hazard ratios
 │   └── 05_ml_prediction.ipynb           # 5-year survival classification (RF, XGBoost)
+├── figures/
 ├── streamlit_app/
 │   ├── app.py                           # interactive dashboard
 │   ├── rf_model.joblib                  # trained Random Forest model
