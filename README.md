@@ -5,9 +5,9 @@ METABRIC (Molecular Taxonomy of Breast Cancer International Consortium) dataset.
 
 ## Research Questions
 
-1. **Survival analysis** — Which clinical and genomic factors are associated with
+1. **Survival analysis** : Which clinical and genomic factors are associated with
    the overall survival of breast cancer patients?
-2. **Machine learning** — Can 5-year survival be predicted from multimodal data
+2. **Machine learning** : Can 5-year survival be predicted from multimodal data
    (clinical + genomic)?
 
 ## Dataset
