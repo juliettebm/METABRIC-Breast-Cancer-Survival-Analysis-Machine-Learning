@@ -1,25 +1,30 @@
-# METABRIC Survival Dashboard
+# 🧬 METABRIC Survival Dashboard
 
-Survival analysis and machine learning prediction on breast cancer, based on the
-METABRIC (Molecular Taxonomy of Breast Cancer International Consortium) dataset.
+[![Dataset](https://img.shields.io/badge/Dataset-METABRIC%20(Kaggle)-blue?logo=kaggle&logoColor=white)](https://www.kaggle.com/datasets/raghadalharbi/breast-cancer-gene-expression-profiles-metabric)
+[![Python](https://img.shields.io/badge/Python-3.x-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![scikit-learn](https://img.shields.io/badge/scikit--learn-Random%20Forest%20%7C%20XGBoost-orange?logo=scikit-learn&logoColor=white)](https://scikit-learn.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-App-red?logo=streamlit&logoColor=white)](https://streamlit.io/)
 
-## Research Questions
+Survival analysis and machine learning prediction on breast cancer, built on the METABRIC (Molecular Taxonomy of Breast Cancer International Consortium) dataset.
 
-1. **Survival analysis** : Which clinical and genomic factors are associated with
-   the overall survival of breast cancer patients?
-2. **Machine learning** : Can 5-year survival be predicted from multimodal data
-   (clinical + genomic)?
+---
+
+## Objective
+
+1. **Survival analysis**: Which clinical and genomic factors are associated with the overall survival of breast cancer patients?
+2. **Machine learning**: Can 5-year survival be predicted from multimodal data (clinical + genomic)?
+
+---
 
 ## Dataset
 
 - **Name**: Breast Cancer Gene Expression Profiles (METABRIC)
-- **Source**: [Kaggle — raghadalharbi/breast-cancer-gene-expression-profiles-metabric](https://www.kaggle.com/datasets/raghadalharbi/breast-cancer-gene-expression-profiles-metabric)
-- **Size**: 1,904 patients, 693 variables (clinical, biomarkers, treatments, gene
-  expression, gene mutations)
+- **Source**: [Kaggle: raghadalharbi/breast-cancer-gene-expression-profiles-metabric](https://www.kaggle.com/datasets/raghadalharbi/breast-cancer-gene-expression-profiles-metabric)
+- **Size**: 1,904 patients, 693 variables (clinical, biomarkers, treatments, gene expression, gene mutations)
 
-The raw CSV is not included in this repository (see [`.gitignore`](.gitignore)).
-Download `METABRIC_RNA_Mutation.csv` from Kaggle and place it in `data/` before
-running the notebooks.
+The raw CSV is not included in this repository (see [`.gitignore`](.gitignore)). Download `METABRIC_RNA_Mutation.csv` from Kaggle and place it in `data/` before running the notebooks.
+
+---
 
 ## Project Structure
 
@@ -46,37 +51,79 @@ running the notebooks.
 └── README.md
 ```
 
-## Methodology
+---
 
-### 1. Exploration (`01_exploration.ipynb`)
-General overview, variable-block separation (clinical / biomarkers / treatments /
-gene expression / mutations), target-variable encoding check, outlier inspection,
-and missing-value mechanism analysis (MCAR / MAR / MNAR).
+## Reproduce
 
-### 2. Preprocessing (`02_preprocessing.ipynb`)
-- Recoding of the target: `event = 1 - overall_survival` to match the `lifelines`
-  convention.
-- Exclusion of unusable variables (data leakage, MNAR, duplicated information).
-- `log1p` transform on skewed variables (`tumor_size`, `mutation_count`).
-- Binarization of mutation columns (variant name → presence/absence).
-- Imputation, encoding, and scaling via a `scikit-learn` `ColumnTransformer` pipeline.
-- Genomic feature selection (`VarianceThreshold` + correlation with survival) to
-  reduce ~660 genomic variables down to the top 25 (survival analysis) / top 50
-  (ML) genes.
-- Export of `df_survival.csv` and `df_ml.csv`.
+### 1. Clone the repository
 
-### 3. Kaplan-Meier survival analysis (`03_kaplan_meier.ipynb`)
-Survival curves and log-rank tests stratified by ER status, HER2 status, PR
-status, histologic grade, chemotherapy, and hormone therapy.
+```bash
+git clone <repo-url>
+cd <repo-name>
+```
 
-### 4. Cox Proportional Hazards model (`04_cox_model.ipynb`)
-Univariate and multivariate Cox regression to identify factors independently
-associated with survival, hazard-ratio forest plot, and a proportional-hazards
-assumption check via Schoenfeld residuals.
+### 2. Install dependencies
 
-### 5. ML prediction (`05_ml_prediction.ipynb`)
-Binary classification of 5-year survival (`survived_5y`) using a Random Forest
-and XGBoost, benchmarked against a `DummyClassifier` baseline.
+```bash
+python -m venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### 3. Download the dataset
+
+Download `METABRIC_RNA_Mutation.csv` from Kaggle and place it in `data/`.
+
+### 4. Run the notebooks in order
+
+Notebooks must be run in order (each one depends on the outputs of the previous one):
+
+```bash
+jupyter notebook notebooks/01_exploration.ipynb
+```
+
+Run `01` → `02` → `03` / `04` (independent) → `05`.
+
+### 5. Launch the Streamlit dashboard
+
+```bash
+cd streamlit_app
+streamlit run app.py
+```
+
+The dashboard has three pages: **Home** (cohort overview), **Survival Analysis** (interactive Kaplan-Meier curves), and **ML Prediction** (5-year survival estimator for a custom patient profile).
+
+---
+
+## Notebooks
+
+### `01_exploration.ipynb`: Exploration
+
+General overview, variable-block separation (clinical / biomarkers / treatments / gene expression / mutations), target-variable encoding check, outlier inspection, and missing-value mechanism analysis (MCAR / MAR / MNAR).
+
+### `02_preprocessing.ipynb`: Preprocessing
+
+- Recoding of the target: `event = 1 - overall_survival` to match the `lifelines` convention
+- Exclusion of unusable variables (data leakage, MNAR, duplicated information)
+- `log1p` transform on skewed variables (`tumor_size`, `mutation_count`)
+- Binarization of mutation columns (variant name → presence/absence)
+- Imputation, encoding, and scaling via a `scikit-learn` `ColumnTransformer` pipeline
+- Genomic feature selection (`VarianceThreshold` + correlation with survival) to reduce ~660 genomic variables down to the top 25 (survival analysis) / top 50 (ML) genes
+- Export of `df_survival.csv` and `df_ml.csv`
+
+### `03_kaplan_meier.ipynb`: Kaplan-Meier Survival Analysis
+
+Survival curves and log-rank tests stratified by ER status, HER2 status, PR status, histologic grade, chemotherapy, and hormone therapy.
+
+### `04_cox_model.ipynb`: Cox Proportional Hazards Model
+
+Univariate and multivariate Cox regression to identify factors independently associated with survival, hazard-ratio forest plot, and a proportional-hazards assumption check via Schoenfeld residuals.
+
+### `05_ml_prediction.ipynb`: ML Prediction
+
+Binary classification of 5-year survival (`survived_5y`) using a Random Forest and XGBoost, benchmarked against a `DummyClassifier` baseline.
+
+---
 
 ## Key Results
 
@@ -86,8 +133,7 @@ and XGBoost, benchmarked against a `DummyClassifier` baseline.
 | **Random Forest** | **0.759** | **73%** | **63%** | **79%** |
 | XGBoost | 0.731 | 69% | 61% | 74% |
 
-Random Forest is retained as the production model in the Streamlit app for its
-robustness out-of-the-box.
+Random Forest is retained as the production model in the Streamlit app for its robustness out-of-the-box.
 
 | Variable (Kaplan-Meier) | Log-rank p-value | Proportional hazards |
 |---|---|---|
@@ -98,47 +144,31 @@ robustness out-of-the-box.
 | Chemotherapy | 7.26e-03 | ⚠️ indication bias |
 | Hormone Therapy | 1.13e-04 | ⚠️ reverse indication bias |
 
-## Installation
+---
 
-```bash
-git clone <repo-url>
-cd <repo-name>
-python -m venv .venv
-source .venv/bin/activate      # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-```
+## Methodological Notes
 
-Download `METABRIC_RNA_Mutation.csv` from Kaggle and place it in `data/`.
+**Why exclude some variables during preprocessing?**
+Several variables were dropped due to data leakage, MNAR patterns, or duplicated information already captured elsewhere in the dataset.
 
-## Usage
+**Why `log1p` on `tumor_size` and `mutation_count`?**
+Both variables are heavily right-skewed; the log transform stabilises variance and improves model behaviour.
 
-### Run the notebooks
+**Why reduce ~660 genomic variables to top 25/50?**
+Raw gene expression and mutation data is extremely high-dimensional relative to the cohort size (1,904 patients). Variance and correlation-based filtering keeps the analysis tractable and interpretable while retaining the most survival-relevant genes.
 
-Notebooks must be run in order (each one depends on the outputs of the previous
-one):
-
-```bash
-jupyter notebook notebooks/01_exploration.ipynb
-```
-
-Run `01` → `02` → `03` / `04` (independent) → `05`.
-
-### Run the dashboard
-
-```bash
-cd streamlit_app
-streamlit run app.py
-```
-
-The dashboard has three pages: **Home** (cohort overview), **Survival Analysis**
-(interactive Kaplan-Meier curves), and **ML Prediction** (5-year survival
-estimator for a custom patient profile).
+---
 
 ## Disclaimer
 
-⚠️ This project is for **educational purposes only**. The model is trained on
-historical data (METABRIC, 2000–2010) and is **not a clinical decision-making
-tool**.
+⚠️ This project is for **educational purposes only**. The model is trained on historical data (METABRIC, 2000-2010) and is **not a clinical decision-making tool**.
+
+---
+
+## Stack
+Python 3.x · pandas · numpy · scikit-learn · xgboost · lifelines · matplotlib · streamlit
+
+---
 
 ## Author
 
