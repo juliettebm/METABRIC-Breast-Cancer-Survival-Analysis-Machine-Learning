@@ -137,13 +137,14 @@ Random Forest is retained as the production model in the Streamlit app for its r
 
 | Variable (Kaplan-Meier) | Log-rank p-value | Proportional hazards |
 |---|---|---|
-| ER Status | 0.02 | ⚠️ curves cross (late relapse) |
-| HER2 Status | 2.22e-05 | ✅ |
-| PR Status | 7.45e-05 | ✅ |
-| Histologic Grade | 1.14e-03 | ✅ |
-| Chemotherapy | 7.26e-03 | ⚠️ indication bias |
-| Hormone Therapy | 1.13e-04 | ⚠️ reverse indication bias |
+| ER Status | 0.02 | Violated (curves cross, late relapse) |
+| HER2 Status | 2.22e-05 | Holds |
+| PR Status | 7.45e-05 | Holds |
+| Histologic Grade | 1.14e-03 | Holds |
+| Chemotherapy | 7.26e-03 | Indication bias |
+| Hormone Therapy | 1.13e-04 | Reverse indication bias |
 
+**Multivariate Cox model** (concordance = 0.67): after adjusting for all covariates, `age_at_diagnosis`, `tumor_size`, `lymph_nodes_examined_positive`, `neoplasm_histologic_grade`, `her2_status`, `chemotherapy` and `radio_therapy` remain independent prognostic factors. Notably, `er_status`, `pr_status` and `hormone_therapy` **lose their univariate significance** once adjusted (p=0.13, 0.36 and 0.89 respectively), confirming that their apparent effect on survival was driven by indication bias and correlation with other variables rather than an independent effect.
 ---
 
 ## Methodological Notes
@@ -161,7 +162,7 @@ Raw gene expression and mutation data is extremely high-dimensional relative to 
 
 ## Disclaimer
 
-⚠️ This project is for **educational purposes only**. The model is trained on historical data (METABRIC, 2000-2010) and is **not a clinical decision-making tool**.
+This project is for **educational purposes only**. The model is trained on historical data (METABRIC, 2000-2010) and is **not a clinical decision-making tool**.
 
 ---
 
