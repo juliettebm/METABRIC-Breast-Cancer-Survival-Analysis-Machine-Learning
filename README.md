@@ -143,4 +143,4 @@ tool**.
 ## Author
 
 **Juliette Bouli-Mengue**
-Clinical Research Associate → Healthcare Data Science
+Clinical Research Associate to Healthcare Data Science
