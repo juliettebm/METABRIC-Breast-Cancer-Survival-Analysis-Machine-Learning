@@ -173,4 +173,4 @@ Python 3.x · pandas · numpy · scikit-learn · xgboost · lifelines · matplot
 ## Author
 
 **Juliette Bouli-Mengue**
-Clinical Research Associate to Healthcare Data Science
+Clinical Research Associate to Data Science
