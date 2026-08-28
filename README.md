@@ -1,4 +1,4 @@
-# 🧬 METABRIC Survival Dashboard
+# METABRIC Survival Dashboard
 
 [![Dataset](https://img.shields.io/badge/Dataset-METABRIC%20(Kaggle)-blue?logo=kaggle&logoColor=white)](https://www.kaggle.com/datasets/raghadalharbi/breast-cancer-gene-expression-profiles-metabric)
 [![Python](https://img.shields.io/badge/Python-3.x-blue?logo=python&logoColor=white)](https://www.python.org/)
