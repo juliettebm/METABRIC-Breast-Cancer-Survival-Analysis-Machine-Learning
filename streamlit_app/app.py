@@ -543,7 +543,9 @@ elif page == "🤖 ML Prediction":
         <div class='warning-box'>
         ⚠️ <b>Educational use only.</b> This model is trained on historical
         data (METABRIC, 2000-2010) and is not a clinical decision-making tool.
-        ROC-AUC = {model_bundle['metrics']['roc_auc']:.3f} on the held-out test set.
+        ROC-AUC = {model_bundle['metrics']['roc_auc']:.3f}
+        (bootstrap 95% CI {model_bundle['metrics']['roc_auc_95_ci'][0]:.3f}–{model_bundle['metrics']['roc_auc_95_ci'][1]:.3f})
+        on the held-out test set.
         </div>
         """, unsafe_allow_html=True)
 

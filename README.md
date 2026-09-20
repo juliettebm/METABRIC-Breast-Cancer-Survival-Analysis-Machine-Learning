@@ -145,10 +145,10 @@ Test set: 369 patients (82 deaths before 5 years, 287 survivors).
 | Model | ROC-AUC | Accuracy | Survivor Recall | Deceased Recall |
 |---|---|---|---|---|
 | Baseline (Dummy) | 0.500 | 78% | 100% | 0% |
-| **Random Forest** | **0.769** | **78%** | **89%** | **40%** |
+| **Random Forest** | **0.769** | **79%** | **90%** | **39%** |
 | XGBoost | 0.756 | 78% | 91% | 35% |
 
-With 78% of survivors, accuracy equals the majority baseline; the value of the model is in ranking (AUC), not in its default-threshold classification (60% of deaths missed). This is one train/test split with 82 test deaths, so the AUC is imprecise, and the 0.013 gap between the two models is within noise. Random Forest is retained in the Streamlit app for its robustness out-of-the-box.
+With 78% of survivors, accuracy remains close to the majority baseline; discrimination and minority-class recall are therefore more informative. The 5-fold CV AUC is 0.757 ± 0.023. On the untouched test set, AUC is 0.769 (bootstrap 95% CI 0.708–0.828), Brier score is 0.156, and death recall is 39%. Random Forest is retained in the Streamlit demonstrator for its robustness and transparent reproducibility.
 
 | Variable (Kaplan-Meier) | Log-rank p-value | Proportional hazards |
 |---|---|---|
