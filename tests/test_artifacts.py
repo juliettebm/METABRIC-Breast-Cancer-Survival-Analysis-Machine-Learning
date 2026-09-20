@@ -11,7 +11,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_python_and_metadata_files_are_valid():
     """Static smoke test that does not require the restricted Kaggle data."""
-    for relative_path in ("train_model.py", "streamlit_app/app.py"):
+    for relative_path in (
+        "train_model.py",
+        "src/metabric/training.py",
+        "streamlit_app/app.py",
+    ):
         path = ROOT / relative_path
         ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
 
@@ -33,3 +37,23 @@ def test_model_bundle_predicts_from_raw_schema():
     assert len(bundle["feature_importances"]) == len(
         bundle["model"].named_steps["classifier"].feature_importances_
     )
+
+
+def test_readme_matches_retrained_metrics():
+    """Keep recruiter-facing claims synchronized with the deployed artifact."""
+    metrics = json.loads((ROOT / "streamlit_app" / "metrics.json").read_text(encoding="utf-8"))
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    lower, upper = metrics["roc_auc_95_ci"]
+    expected = (
+        f"AUC is {metrics['roc_auc']:.3f} "
+        f"(bootstrap 95% CI {lower:.3f}–{upper:.3f}), "
+        f"Brier score is {metrics['brier_score']:.3f}"
+    )
+    assert expected in readme
+    report = metrics["classification_report"]
+    table_row = (
+        f"| **Random Forest** | **{metrics['roc_auc']:.3f}** | "
+        f"**{metrics['accuracy']:.0%}** | **{report['1']['recall']:.0%}** | "
+        f"**{report['0']['recall']:.0%}** |"
+    )
+    assert table_row in readme

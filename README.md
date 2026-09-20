@@ -2,7 +2,8 @@
 
 [![Dataset](https://img.shields.io/badge/Dataset-METABRIC%20(Kaggle)-blue?logo=kaggle&logoColor=white)](https://www.kaggle.com/datasets/raghadalharbi/breast-cancer-gene-expression-profiles-metabric)
 [![CI](https://github.com/juliettebm/METABRIC-Breast-Cancer-Survival-Analysis-Machine-Learning/actions/workflows/ci.yml/badge.svg)](https://github.com/juliettebm/METABRIC-Breast-Cancer-Survival-Analysis-Machine-Learning/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/Python-3.x-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![Reproducibility](https://img.shields.io/badge/reproducibility-pinned%20environment-success)](requirements.txt)
+[![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-Random%20Forest%20%7C%20XGBoost-orange?logo=scikit-learn&logoColor=white)](https://scikit-learn.org/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-App-red?logo=streamlit&logoColor=white)](https://streamlit.io/)
 
@@ -53,9 +54,10 @@ Neither the raw CSV nor the processed dataframes derived from it are included in
 └── README.md
 ```
 
-`train_model.py` is the canonical leakage-free training entry point. It writes
-the complete preprocessing/model bundle and held-out metrics to
-`streamlit_app/`.
+`train_model.py` is the canonical leakage-free training entry point. Reusable
+data preparation, pipeline construction and evaluation code lives in
+`src/metabric/training.py`; the entry point writes the complete model bundle and
+held-out metrics to `streamlit_app/`.
 
 ---
 
@@ -71,7 +73,7 @@ cd <repo-name>
 ### 2. Install dependencies
 
 ```bash
-python -m venv .venv
+python -m venv .venv  # Python 3.12
 source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
@@ -157,10 +159,10 @@ Test set: 369 patients (82 deaths before 5 years, 287 survivors).
 | Model | ROC-AUC | Accuracy | Survivor Recall | Deceased Recall |
 |---|---|---|---|---|
 | Baseline (Dummy) | 0.500 | 78% | 100% | 0% |
-| **Random Forest** | **0.769** | **79%** | **90%** | **39%** |
+| **Random Forest** | **0.778** | **79%** | **86%** | **54%** |
 | XGBoost | 0.756 | 78% | 91% | 35% |
 
-With 78% of survivors, accuracy remains close to the majority baseline; discrimination and minority-class recall are therefore more informative. The 5-fold CV AUC is 0.757 ± 0.023. On the untouched test set, AUC is 0.769 (bootstrap 95% CI 0.708–0.828), Brier score is 0.156, and death recall is 39%. Random Forest is retained in the Streamlit demonstrator for its robustness and transparent reproducibility.
+With 78% of survivors, accuracy remains close to the majority baseline; discrimination and minority-class recall are therefore more informative. For the leakage-free retrained artifact, the nested 5-fold CV AUC is 0.757 ± 0.025. On the untouched test set (369 patients), AUC is 0.778 (bootstrap 95% CI 0.717–0.834), Brier score is 0.160, and death recall is 53.7%. Random Forest is retained in the Streamlit demonstrator for its robustness and transparent reproducibility. The values in `streamlit_app/metrics.json` are the source of truth for the deployed retrained artifact.
 
 | Variable (Kaplan-Meier) | Log-rank p-value | Proportional hazards |
 |---|---|---|

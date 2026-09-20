@@ -1,158 +1,19 @@
-"""Leakage-free training entry point for the METABRIC 5-year model."""
+"""Backward-compatible command-line entry point for METABRIC training."""
 
 from pathlib import Path
-import json
+import sys
 
-import joblib
-import numpy as np
-import pandas as pd
-from sklearn.compose import ColumnTransformer
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.feature_selection import SelectKBest, VarianceThreshold, f_classif
-from sklearn.impute import SimpleImputer
-from sklearn.metrics import accuracy_score, brier_score_loss, classification_report, roc_auc_score
-from sklearn.model_selection import GridSearchCV, StratifiedKFold, cross_validate, train_test_split
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler
+SRC = Path(__file__).resolve().parent / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 
-
-ROOT = Path(__file__).resolve().parent
-RAW_PATHS = [ROOT / "data" / "METABRIC_RNA_Mutation.csv", ROOT / "data" / "METABRIC_RNA_Mutation"]
-
-NUMERIC = [
-    "age_at_diagnosis", "tumor_size", "mutation_count",
-    "nottingham_prognostic_index", "lymph_nodes_examined_positive", "cohort",
-]
-ORDINAL = ["cellularity", "neoplasm_histologic_grade"]
-ORDINAL_CATEGORIES = [["Low", "Moderate", "High"], [1.0, 2.0, 3.0]]
-CATEGORICAL = [
-    "er_status", "pr_status", "her2_status", "cancer_type",
-    "type_of_breast_surgery", "inferred_menopausal_state",
-    "cancer_type_detailed", "tumor_other_histologic_subtype",
-    "pam50_+_claudin-low_subtype", "integrative_cluster",
-]
-BINARY = ["chemotherapy", "hormone_therapy", "radio_therapy"]
-NON_FEATURES = {
-    "patient_id", "overall_survival_months", "overall_survival", "death_from_cancer",
-    "tumor_stage", "3-gene_classifier_subtype", "primary_tumor_laterality",
-    "er_status_measured_by_ihc", "her2_status_measured_by_snp6", "oncotree_code",
-}
-
-
-def load_raw() -> pd.DataFrame:
-    try:
-        path = next(path for path in RAW_PATHS if path.exists())
-    except StopIteration as exc:
-        raise FileNotFoundError("Place METABRIC_RNA_Mutation.csv in data/") from exc
-    return pd.read_csv(path, low_memory=False)
-
-
-def prepare_features(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
-    data = df.copy()
-    data["tumor_size"] = np.log1p(data["tumor_size"])
-    data["mutation_count"] = np.log1p(data["mutation_count"])
-    mutation_cols = [c for c in data if c.endswith("_mut")]
-    data[mutation_cols] = data[mutation_cols].apply(
-        lambda col: col.map(lambda value: 0 if pd.isna(value) or str(value) == "0" else 1)
-    )
-    clinical = NUMERIC + ORDINAL + CATEGORICAL + BINARY
-    genomic = [c for c in data if c not in NON_FEATURES and c not in clinical]
-    return data[clinical + genomic], genomic
-
-
-def build_pipeline(genomic: list[str]) -> Pipeline:
-    clinical = ColumnTransformer(
-        [
-            ("numeric", Pipeline([("imputer", SimpleImputer(strategy="median")), ("scale", StandardScaler())]), NUMERIC),
-            ("ordinal", Pipeline([("imputer", SimpleImputer(strategy="most_frequent")), ("encode", OrdinalEncoder(categories=ORDINAL_CATEGORIES, handle_unknown="use_encoded_value", unknown_value=-1))]), ORDINAL),
-            ("categorical", Pipeline([("imputer", SimpleImputer(strategy="most_frequent")), ("encode", OneHotEncoder(handle_unknown="ignore", sparse_output=False))]), CATEGORICAL),
-            ("binary", SimpleImputer(strategy="most_frequent"), BINARY),
-            ("genomic", Pipeline([("imputer", SimpleImputer(strategy="median")), ("variance", VarianceThreshold(threshold=0.01)), ("select", SelectKBest(f_classif, k=50))]), genomic),
-        ],
-        verbose_feature_names_out=True,
-    )
-    return Pipeline([
-        ("preprocessor", clinical),
-        ("classifier", RandomForestClassifier(n_estimators=500, class_weight="balanced", random_state=42, n_jobs=-1)),
-    ])
-
-
-def bootstrap_auc(y_true, probability, n_bootstraps: int = 2000) -> list[float]:
-    """Return a reproducible percentile 95% bootstrap interval for ROC-AUC."""
-    rng = np.random.default_rng(42)
-    y_array, p_array = np.asarray(y_true), np.asarray(probability)
-    scores = []
-    for _ in range(n_bootstraps):
-        indices = rng.integers(0, len(y_array), len(y_array))
-        if np.unique(y_array[indices]).size == 2:
-            scores.append(roc_auc_score(y_array[indices], p_array[indices]))
-    return np.quantile(scores, [0.025, 0.975]).tolist()
-
-
-def main() -> None:
-    raw = load_raw()
-    known = ~((raw["overall_survival_months"] < 60) & (raw["overall_survival"] == 1))
-    cohort = raw.loc[known].copy()
-    y = (cohort["overall_survival_months"] >= 60).astype(int)
-    X, genomic = prepare_features(cohort)
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
-    )
-
-    base_model = build_pipeline(genomic)
-
-    # Nested CV: the inner loop selects the RF regularisation while the outer
-    # loop estimates generalisation. Every candidate contains preprocessing,
-    # so all transformations are refitted without seeing the validation fold.
-    inner_cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=41)
-    outer_cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-    search = GridSearchCV(
-        base_model,
-        {"classifier__min_samples_leaf": [1, 3]},
-        scoring="roc_auc",
-        cv=inner_cv,
-        n_jobs=-1,
-        refit=True,
-    )
-    cv_scores = cross_validate(
-        search, X_train, y_train, cv=outer_cv,
-        scoring={"roc_auc": "roc_auc", "brier": "neg_brier_score"}, n_jobs=-1,
-    )
-    search.fit(X_train, y_train)
-    model = search.best_estimator_
-    probability = model.predict_proba(X_test)[:, 1]
-    prediction = model.predict(X_test)
-    metrics = {
-        "test_patients": int(len(y_test)),
-        "roc_auc": float(roc_auc_score(y_test, probability)),
-        "roc_auc_95_ci": bootstrap_auc(y_test, probability),
-        "brier_score": float(brier_score_loss(y_test, probability)),
-        "cv_roc_auc_mean": float(cv_scores["test_roc_auc"].mean()),
-        "cv_roc_auc_std": float(cv_scores["test_roc_auc"].std()),
-        "cv_brier_mean": float(-cv_scores["test_brier"].mean()),
-        "selected_parameters": search.best_params_,
-        "accuracy": float(accuracy_score(y_test, prediction)),
-        "classification_report": classification_report(y_test, prediction, output_dict=True),
-    }
-
-    names = model.named_steps["preprocessor"].get_feature_names_out()
-    importances = model.named_steps["classifier"].feature_importances_
-    defaults = {
-        column: (X_train[column].median() if pd.api.types.is_numeric_dtype(X_train[column])
-                 else X_train[column].mode(dropna=True).iloc[0])
-        for column in X_train
-    }
-    bundle = {
-        "model": model,
-        "raw_feature_cols": X.columns.tolist(),
-        "defaults": defaults,
-        "feature_importances": pd.Series(importances, index=names),
-        "metrics": metrics,
-    }
-    joblib.dump(bundle, ROOT / "streamlit_app" / "rf_model.joblib")
-    joblib.dump(X.columns.tolist(), ROOT / "streamlit_app" / "feature_cols.joblib")
-    (ROOT / "streamlit_app" / "metrics.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
-    print(json.dumps(metrics, indent=2))
+from metabric.training import (  # noqa: E402,F401
+    bootstrap_auc,
+    build_pipeline,
+    load_raw,
+    main,
+    prepare_features,
+)
 
 
 if __name__ == "__main__":

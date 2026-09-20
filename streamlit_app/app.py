@@ -222,9 +222,9 @@ if page == "🏠 Home":
         </div>""", unsafe_allow_html=True)
 
     with col4:
-        st.markdown("""
+        st.markdown(f"""
         <div class='metric-card'>
-            <div class='metric-value'>0.77</div>
+            <div class='metric-value'>{model_bundle['metrics']['roc_auc']:.2f}</div>
             <div class='metric-label'>ROC-AUC (RF)</div>
         </div>""", unsafe_allow_html=True)
 
