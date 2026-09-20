@@ -219,7 +219,7 @@ if page == "🏠 Home":
     with col4:
         st.markdown("""
         <div class='metric-card'>
-            <div class='metric-value'>0.759</div>
+            <div class='metric-value'>0.77</div>
             <div class='metric-label'>ROC-AUC (RF)</div>
         </div>""", unsafe_allow_html=True)
 
@@ -509,9 +509,12 @@ elif page == "🤖 ML Prediction":
         proba = rf.predict_proba(input_data)[0][1]
         pct = int(proba * 100)
 
-        css_class = "pred-high" if proba >= 0.5 else "pred-low"
-        color = "#50c878" if proba >= 0.5 else "#e05555"
-        verdict = "Favorable profile" if proba >= 0.5 else "Unfavorable profile"
+        # 5-year survival is the majority outcome (~78% of the cohort): compare with that base rate
+        BASE_RATE = 0.777
+        favorable = proba >= BASE_RATE
+        css_class = "pred-high" if favorable else "pred-low"
+        color = "#50c878" if favorable else "#e05555"
+        verdict = "Above cohort average (78%)" if favorable else "Below cohort average (78%)"
 
         st.markdown(f"""
         <div class='{css_class}'>
