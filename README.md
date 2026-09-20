@@ -171,6 +171,12 @@ This project is for **educational purposes only**. The model is trained on histo
 
 ---
 
+## License
+
+Released under the [MIT License](LICENSE). The METABRIC data is distributed separately by its source and is not redistributed here.
+
+---
+
 ## Stack
 Python 3.x · pandas · numpy · scikit-learn · xgboost · lifelines · matplotlib · streamlit
 
