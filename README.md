@@ -52,6 +52,10 @@ Neither the raw CSV nor the processed dataframes derived from it are included in
 └── README.md
 ```
 
+`train_model.py` is the canonical leakage-free training entry point. It writes
+the complete preprocessing/model bundle and held-out metrics to
+`streamlit_app/`.
+
 ---
 
 ## Reproduce
@@ -83,7 +87,13 @@ Notebooks must be run in order (each one depends on the outputs of the previous 
 jupyter notebook notebooks/01_exploration.ipynb
 ```
 
-Run `01` → `02` → `03` / `04` (independent) → `05`.
+Run `01` → `02` → `03` / `04` (independent). To retrain the predictive
+model from the raw data with all learned transformations isolated to the
+training fold, run:
+
+```bash
+python train_model.py
+```
 
 ### 5. Launch the Streamlit dashboard
 
@@ -92,7 +102,7 @@ cd streamlit_app
 streamlit run app.py
 ```
 
-The dashboard has three pages: **Home** (cohort overview), **Survival Analysis** (interactive Kaplan-Meier curves), and **ML Prediction** (5-year survival estimator for a custom patient profile).
+The educational Streamlit demonstrator has three pages: **Home** (cohort overview), **Survival Analysis** (interactive Kaplan-Meier curves), and **ML Prediction** (5-year survival estimator for a custom patient profile).
 
 ---
 
@@ -109,7 +119,7 @@ General overview, variable-block separation (clinical / biomarkers / treatments 
 - `log1p` transform on skewed variables (`tumor_size`, `mutation_count`)
 - Binarization of mutation columns (variant name → presence/absence)
 - Imputation, encoding, and scaling via a `scikit-learn` `ColumnTransformer` pipeline
-- Genomic feature selection: `VarianceThreshold` (662 → 604 variables), then the top 25 genes by correlation with survival time for the Cox dataframe. For ML, the supervised top-50 selection is **not** done here (it uses the outcome): it is done on the training set only in notebook 05
+- Genomic feature selection for descriptive survival analysis: `VarianceThreshold` (662 → 604 variables), then the top 25 genes by correlation with survival time for the Cox dataframe. Predictive preprocessing is independently fitted on the training fold by `train_model.py`.
 - Export of `df_survival.csv`, `df_ml.csv` and `feature_groups.json`
 
 ### `03_kaplan_meier.ipynb`: Kaplan-Meier Survival Analysis
@@ -122,7 +132,9 @@ Univariate and multivariate Cox regression to identify factors independently ass
 
 ### `05_ml_prediction.ipynb`: ML Prediction
 
-Binary classification of 5-year survival (`survived_5y = overall_survival_months >= 60`, patients censored before 60 months excluded) using a Random Forest and XGBoost, benchmarked against a `DummyClassifier` baseline. The 80/20 split is made first; the top-50 genes are then selected on the training set only.
+Binary classification of 5-year survival (`survived_5y = overall_survival_months >= 60`, patients censored before 60 months excluded). The reproducible `train_model.py` entry point makes the stratified 80/20 split first. Its scikit-learn pipeline then fits imputation, encoding, standardisation and top-50 supervised genomic selection exclusively on the training fold before fitting the Random Forest.
+
+The pipeline is also evaluated with nested stratified cross-validation (3-fold inner model selection, 5-fold outer evaluation). The held-out AUC is accompanied by a percentile bootstrap 95% confidence interval and the Brier score provides a probability-calibration diagnostic. These internal estimates do not replace validation on an independent external cohort.
 
 ---
 
@@ -161,13 +173,18 @@ Both variables are heavily right-skewed; the log transform stabilises variance a
 **Why reduce ~660 genomic variables, and where?**
 Raw gene expression and mutation data is extremely high-dimensional relative to the cohort size (1,904 patients). A variance filter (label-free) is applied during preprocessing. The top 25 genes kept for the descriptive Cox dataframe are chosen on the full cohort (an exploratory, non-predictive analysis). For the ML models, the top 50 genes are selected after the train/test split, on the training set only, so that the test AUC is not inflated by leakage.
 
-**Known limitation:** imputation and scaling (notebook 02) are unsupervised and were fitted on the full cohort before the split.
+For predictive modelling, every learned preprocessing step is fitted on the
+training fold. Notebook 02's cohort-wide preprocessing is retained only for
+descriptive Kaplan-Meier/Cox analyses and is not consumed by the production
+model artifact.
 
 ---
 
 ## Disclaimer
 
 This project is for **educational purposes only**. The model is trained on historical data (METABRIC, 2000-2010) and is **not a clinical decision-making tool**.
+
+The model has no external validation and must not be used for patient care. The app is an educational Streamlit demonstrator, not a decision-support application.
 
 ---
 

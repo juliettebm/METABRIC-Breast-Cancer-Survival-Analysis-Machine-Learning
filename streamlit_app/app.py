@@ -3,8 +3,12 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import joblib
+from pathlib import Path
 from lifelines import KaplanMeierFitter
 from lifelines.statistics import logrank_test
+
+APP_DIR = Path(__file__).resolve().parent
+ROOT_DIR = APP_DIR.parent
 
 # ── Config ────────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -139,19 +143,20 @@ def hex_to_rgba(hex_color, alpha=0.12):
 # ── Data loading ────────────────────────────────────────────────────────────
 @st.cache_data
 def load_data():
-    df = pd.read_csv("../data/processed/df_survival.csv")
-    df_raw = pd.read_csv("../data/METABRIC_RNA_Mutation.csv", low_memory=False)
-    df_ml = pd.read_csv("../data/processed/df_ml.csv")
+    df = pd.read_csv(ROOT_DIR / "data" / "processed" / "df_survival.csv")
+    df_raw = pd.read_csv(ROOT_DIR / "data" / "METABRIC_RNA_Mutation.csv", low_memory=False)
+    df_ml = pd.read_csv(ROOT_DIR / "data" / "processed" / "df_ml.csv")
     return df, df_raw, df_ml
 
 @st.cache_resource
 def load_model():
-    rf = joblib.load("rf_model.joblib")
-    feature_cols = joblib.load("feature_cols.joblib")
-    return rf, feature_cols
+    bundle = joblib.load(APP_DIR / "rf_model.joblib")
+    return bundle
 
 df, df_raw, df_ml = load_data()
-rf, feature_cols = load_model()
+model_bundle = load_model()
+rf = model_bundle["model"]
+feature_cols = model_bundle["raw_feature_cols"]
 
 # Original labels
 df_plot = df.copy()
@@ -464,46 +469,21 @@ elif page == "🤖 ML Prediction":
     with col_result:
         st.markdown("<div class='section-header'>Result</div>", unsafe_allow_html=True)
 
-        # Build the feature vector
-        # Dataset means/modes are used for features not entered by the user
-        input_data = pd.DataFrame([{f: 0 for f in feature_cols}])
-
-        # Fill in known values (standardized as in preprocessing), reusing the
-        # already-loaded df_ml instead of re-reading the CSV from disk
-        feature_means = df_ml[feature_cols].mean()
-        feature_stds = df_ml[feature_cols].std().replace(0, 1)
-
-        for col in feature_cols:
-            input_data[col] = feature_means[col]
-
-        # Overwrite with form values (standardized)
-        def standardize(val, col):
-            return (val - feature_means[col]) / feature_stds[col]
-
-        if "age_at_diagnosis" in feature_cols:
-            input_data["age_at_diagnosis"] = standardize(age, "age_at_diagnosis")
-        if "tumor_size" in feature_cols:
-            input_data["tumor_size"] = standardize(np.log1p(tumor_size), "tumor_size")
-        if "nottingham_prognostic_index" in feature_cols:
-            input_data["nottingham_prognostic_index"] = standardize(npi, "nottingham_prognostic_index")
-        if "lymph_nodes_examined_positive" in feature_cols:
-            input_data["lymph_nodes_examined_positive"] = standardize(lymph_nodes, "lymph_nodes_examined_positive")
-        if "neoplasm_histologic_grade" in feature_cols:
-            input_data["neoplasm_histologic_grade"] = grade - 1  # OrdinalEncoder 0/1/2
-        if "mutation_count" in feature_cols:
-            input_data["mutation_count"] = standardize(np.log1p(mutation_count), "mutation_count")
-        if "er_status_Positive" in feature_cols:
-            input_data["er_status_Positive"] = 1 if er == "Positive" else 0
-        if "pr_status_Positive" in feature_cols:
-            input_data["pr_status_Positive"] = 1 if pr == "Positive" else 0
-        if "her2_status_Positive" in feature_cols:
-            input_data["her2_status_Positive"] = 1 if her2 == "Positive" else 0
-        if "chemotherapy" in feature_cols:
-            input_data["chemotherapy"] = int(chemo)
-        if "hormone_therapy" in feature_cols:
-            input_data["hormone_therapy"] = int(hormone)
-        if "radio_therapy" in feature_cols:
-            input_data["radio_therapy"] = int(radio)
+        # The saved sklearn pipeline owns imputation, encoding, scaling and
+        # gene selection. Defaults were learned from the training fold only.
+        input_data = pd.DataFrame([model_bundle["defaults"]], columns=feature_cols)
+        input_data.loc[0, "age_at_diagnosis"] = age
+        input_data.loc[0, "tumor_size"] = np.log1p(tumor_size)
+        input_data.loc[0, "nottingham_prognostic_index"] = npi
+        input_data.loc[0, "lymph_nodes_examined_positive"] = lymph_nodes
+        input_data.loc[0, "neoplasm_histologic_grade"] = float(grade)
+        input_data.loc[0, "mutation_count"] = np.log1p(mutation_count)
+        input_data.loc[0, "er_status"] = er
+        input_data.loc[0, "pr_status"] = pr
+        input_data.loc[0, "her2_status"] = her2
+        input_data.loc[0, "chemotherapy"] = int(chemo)
+        input_data.loc[0, "hormone_therapy"] = int(hormone)
+        input_data.loc[0, "radio_therapy"] = int(radio)
 
         # Prediction
         proba = rf.predict_proba(input_data)[0][1]
@@ -559,17 +539,17 @@ elif page == "🤖 ML Prediction":
         )
         st.plotly_chart(fig_gauge, use_container_width=True)
 
-        st.markdown("""
+        st.markdown(f"""
         <div class='warning-box'>
         ⚠️ <b>Educational use only.</b> This model is trained on historical
         data (METABRIC, 2000-2010) and is not a clinical decision-making tool.
-        ROC-AUC = 0.759 on the test set.
+        ROC-AUC = {model_bundle['metrics']['roc_auc']:.3f} on the held-out test set.
         </div>
         """, unsafe_allow_html=True)
 
         # Top 5 feature importances
         st.markdown("<div class='section-header'>Top 5 factors (global model)</div>", unsafe_allow_html=True)
-        importances = pd.Series(rf.feature_importances_, index=feature_cols)
+        importances = model_bundle["feature_importances"]
         top5 = importances.sort_values(ascending=False).head(5)
 
         fig_imp = go.Figure(go.Bar(
