@@ -1,6 +1,7 @@
 # METABRIC Survival Dashboard
 
 [![Dataset](https://img.shields.io/badge/Dataset-METABRIC%20(Kaggle)-blue?logo=kaggle&logoColor=white)](https://www.kaggle.com/datasets/raghadalharbi/breast-cancer-gene-expression-profiles-metabric)
+[![CI](https://github.com/juliettebm/METABRIC-Breast-Cancer-Survival-Analysis-Machine-Learning/actions/workflows/ci.yml/badge.svg)](https://github.com/juliettebm/METABRIC-Breast-Cancer-Survival-Analysis-Machine-Learning/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/Python-3.x-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-Random%20Forest%20%7C%20XGBoost-orange?logo=scikit-learn&logoColor=white)](https://scikit-learn.org/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-App-red?logo=streamlit&logoColor=white)](https://streamlit.io/)
@@ -103,6 +104,17 @@ streamlit run app.py
 ```
 
 The educational Streamlit demonstrator has three pages: **Home** (cohort overview), **Survival Analysis** (interactive Kaplan-Meier curves), and **ML Prediction** (5-year survival estimator for a custom patient profile).
+
+### 6. Run smoke tests
+
+```bash
+python -m pytest -q
+```
+
+The smoke suite validates Python/JSON metadata, loads the versioned model bundle
+and performs an inference using its expected raw feature schema. It does not
+require the non-redistributable METABRIC CSV, so the same suite runs in GitHub
+Actions on every push and pull request.
 
 ---
 

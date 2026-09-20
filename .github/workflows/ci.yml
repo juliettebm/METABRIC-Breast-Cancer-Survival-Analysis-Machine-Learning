@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install smoke-test dependencies
+        run: >-
+          python -m pip install
+          joblib
+          numpy
+          pandas
+          pytest
+          scikit-learn==1.9.1
+
+      - name: Run artifact and inference smoke tests
+        run: python -m pytest -q
