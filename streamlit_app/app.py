@@ -490,7 +490,14 @@ elif page == "🤖 ML Prediction":
         input_data.loc[0, "radio_therapy"] = int(radio)
 
         # Prediction
+        # The forest is class-weighted, so its raw probabilities under-estimate survival
+        # (mean about 64% vs 78% observed). A Platt map fitted on out-of-fold training
+        # predictions recalibrates them before they are read as a risk.
         proba = rf.predict_proba(input_data)[0][1]
+        calibrator = model_bundle.get("calibrator")
+        if calibrator is not None:
+            clipped = float(np.clip(proba, 1e-4, 1 - 1e-4))
+            proba = calibrator.predict_proba([[np.log(clipped / (1 - clipped))]])[0][1]
         pct = int(proba * 100)
 
         # 5-year survival is the majority outcome (~78% of the cohort): compare with that base rate

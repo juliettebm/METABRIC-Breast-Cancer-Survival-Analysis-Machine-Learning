@@ -6,12 +6,16 @@ import json
 import joblib
 import numpy as np
 import pandas as pd
+from sklearn.base import clone
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_selection import SelectKBest, VarianceThreshold, f_classif
 from sklearn.impute import SimpleImputer
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, brier_score_loss, classification_report, roc_auc_score
-from sklearn.model_selection import GridSearchCV, StratifiedKFold, cross_validate, train_test_split
+from sklearn.model_selection import (
+    GridSearchCV, StratifiedKFold, cross_val_predict, cross_validate, train_test_split,
+)
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler
 
@@ -81,6 +85,30 @@ def build_pipeline(genomic: list[str]) -> Pipeline:
     ])
 
 
+def _logit(probability) -> np.ndarray:
+    p = np.clip(np.asarray(probability, dtype=float), 1e-4, 1 - 1e-4)
+    return np.log(p / (1 - p)).reshape(-1, 1)
+
+
+def fit_platt(raw_probability, y) -> LogisticRegression:
+    """Platt scaling: logistic regression of the outcome on the logit of the raw probability.
+
+    The map is strictly monotone, so ranking metrics such as ROC-AUC are unchanged.
+    """
+    return LogisticRegression(C=1e6).fit(_logit(raw_probability), y)
+
+
+def apply_platt(calibrator: LogisticRegression, raw_probability) -> np.ndarray:
+    return calibrator.predict_proba(_logit(raw_probability))[:, 1]
+
+
+def calibration_slope_intercept(y_true, survival_probability) -> tuple[float, float]:
+    """Slope and intercept of the outcome (death) on the logit of the predicted death probability."""
+    death = (np.asarray(y_true) == 0).astype(int)
+    fit = LogisticRegression(C=1e6).fit(_logit(1 - np.asarray(survival_probability)), death)
+    return float(fit.coef_[0, 0]), float(fit.intercept_[0])
+
+
 def bootstrap_auc(y_true, probability, n_bootstraps: int = 2000) -> list[float]:
     """Return a reproducible percentile 95% bootstrap interval for ROC-AUC."""
     rng = np.random.default_rng(42)
@@ -126,16 +154,41 @@ def main() -> None:
     model = search.best_estimator_
     probability = model.predict_proba(X_test)[:, 1]
     prediction = model.predict(X_test)
+
+    # The class-weighted forest ranks patients well but its raw probabilities are
+    # biased (deaths over-predicted). A Platt map is fitted on out-of-fold training
+    # predictions only, so the test set stays untouched for the final evaluation.
+    oof_probability = cross_val_predict(
+        clone(model), X_train, y_train,
+        cv=StratifiedKFold(n_splits=5, shuffle=True, random_state=43),
+        method="predict_proba", n_jobs=-1,
+    )[:, 1]
+    calibrator = fit_platt(oof_probability, y_train)
+    calibrated = apply_platt(calibrator, probability)
+    raw_slope, raw_intercept = calibration_slope_intercept(y_test, probability)
+    cal_slope, cal_intercept = calibration_slope_intercept(y_test, calibrated)
+
     metrics = {
         "test_patients": int(len(y_test)),
-        "roc_auc": float(roc_auc_score(y_test, probability)),
-        "roc_auc_95_ci": bootstrap_auc(y_test, probability),
-        "brier_score": float(brier_score_loss(y_test, probability)),
+        # AUC is identical for raw and calibrated probabilities (monotone map).
+        "roc_auc": float(roc_auc_score(y_test, calibrated)),
+        "roc_auc_95_ci": bootstrap_auc(y_test, calibrated),
+        # Brier score of the probability shown to users (calibrated).
+        "brier_score": float(brier_score_loss(y_test, calibrated)),
+        "brier_score_uncalibrated": float(brier_score_loss(y_test, probability)),
+        "calibration_slope": cal_slope,
+        "calibration_intercept": cal_intercept,
+        "calibration_slope_uncalibrated": raw_slope,
+        "calibration_intercept_uncalibrated": raw_intercept,
+        "mean_predicted_survival": float(calibrated.mean()),
+        "mean_predicted_survival_uncalibrated": float(probability.mean()),
+        "observed_survival": float(y_test.mean()),
         "cv_roc_auc_mean": float(cv_scores["test_roc_auc"].mean()),
         "cv_roc_auc_std": float(cv_scores["test_roc_auc"].std()),
         "cv_brier_mean": float(-cv_scores["test_brier"].mean()),
         "selected_parameters": search.best_params_,
         "accuracy": float(accuracy_score(y_test, prediction)),
+        # Class predictions come from the uncalibrated class-weighted forest (default 0.5 rule).
         "classification_report": classification_report(y_test, prediction, output_dict=True),
     }
 
@@ -148,6 +201,7 @@ def main() -> None:
     }
     bundle = {
         "model": model,
+        "calibrator": calibrator,
         "raw_feature_cols": X.columns.tolist(),
         "defaults": defaults,
         "feature_importances": pd.Series(importances, index=names),

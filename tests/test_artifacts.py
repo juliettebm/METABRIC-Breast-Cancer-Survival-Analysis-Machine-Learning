@@ -77,3 +77,71 @@ def test_third_party_data_is_not_tracked():
         ["git", "ls-files", "data"], cwd=ROOT, text=True
     ).strip()
     assert tracked == ""
+
+
+def _robustness():
+    return json.loads((ROOT / "reports" / "robustness_metrics.json").read_text(encoding="utf-8"))
+
+
+def test_permutation_test_shows_no_leakage():
+    """With shuffled labels the pipeline must fall back to chance level."""
+    result = _robustness()["permutation_test"]
+    assert 0.40 < result["permuted_auc_mean"] < 0.60
+    assert result["real_auc"] > result["permuted_auc_max"]
+
+
+def test_readme_matches_robustness_metrics():
+    robustness = _robustness()
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    perm = robustness["permutation_test"]
+    assert f"Permuted AUC averages {perm['permuted_auc_mean']:.3f}" in readme
+    split = robustness["split_variability"]
+    assert f"AUC {split['auc_mean']:.3f} ± {split['auc_std']:.3f}" in readme
+    cox = robustness["cox"]
+    assert f"Apparent {cox['apparent_c_index']:.3f}; 5-fold cross-validated {cox['cv_c_index_mean']:.3f}" in readme
+    raw_rf = robustness["calibration_comparison"]["models"]["random_forest"]
+    assert f"calibration intercept {raw_rf['intercept_raw']['mean']:.2f}" in readme
+    calibration = robustness["threshold_and_calibration"]
+    for row in calibration["thresholds"]:
+        assert f"{row['death_recall']:.1%}" in readme
+
+
+def test_readme_matches_model_comparison():
+    comparison = _robustness()["model_comparison"]["metrics"]
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    auc = comparison["auc"]
+    assert (
+        f"| ROC-AUC | {auc['random_forest_mean']:.3f} | {auc['xgboost_mean']:.3f} |" in readme
+    )
+    brier = comparison["brier"]
+    assert f"| Brier score (lower is better) | {brier['random_forest_mean']:.3f} | {brier['xgboost_mean']:.3f} |" in readme
+
+
+def test_deployed_probabilities_are_calibrated():
+    """The app shows a probability: it must be calibrated, not the raw class-weighted output."""
+    bundle = joblib.load(ROOT / "streamlit_app" / "rf_model.joblib")
+    assert "calibrator" in bundle
+    metrics = bundle["metrics"]
+    assert abs(metrics["mean_predicted_survival"] - metrics["observed_survival"]) < 0.03
+    assert 0.8 < metrics["calibration_slope"] < 1.25
+    assert abs(metrics["calibration_intercept"]) < 0.25
+    assert metrics["brier_score"] < metrics["brier_score_uncalibrated"]
+
+
+def test_readme_matches_calibration_comparison():
+    calibration = _robustness()["calibration_comparison"]
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    rf, xgb = calibration["models"]["random_forest"], calibration["models"]["xgboost"]
+    row = (
+        f"| Platt | {rf['brier_platt']['mean']:.3f} ± {rf['brier_platt']['std']:.3f} | "
+        f"{xgb['brier_platt']['mean']:.3f} ± {xgb['brier_platt']['std']:.3f} |"
+    )
+    assert row in readme
+
+
+def test_readme_matches_survival_model_comparison():
+    survival = _robustness()["survival_model_comparison"]
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    auc, cindex = survival["auc_5y"], survival["cindex"]
+    assert f"{auc['classifier_mean']:.3f} ± {auc['classifier_std']:.3f} | {auc['cox_mean']:.3f} ± {auc['cox_std']:.3f}" in readme
+    assert f"{cindex['classifier_mean']:.3f} ± {cindex['classifier_std']:.3f} | {cindex['cox_mean']:.3f} ± {cindex['cox_std']:.3f}" in readme

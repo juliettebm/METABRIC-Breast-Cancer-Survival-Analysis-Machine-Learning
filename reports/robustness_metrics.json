@@ -1,0 +1,299 @@
+{
+  "permutation_test": {
+    "real_auc": 0.7584770969660917,
+    "n_permutations": 20,
+    "permuted_auc_mean": 0.49431460865131294,
+    "permuted_auc_min": 0.38743944930738505,
+    "permuted_auc_max": 0.6022350641624883,
+    "empirical_p_value": 0.047619047619047616
+  },
+  "threshold_and_calibration": {
+    "thresholds": [
+      {
+        "death_probability_threshold": 0.2,
+        "death_recall": 0.926829268292683,
+        "death_precision": 0.2611683848797251,
+        "flagged_share": 0.7886178861788617
+      },
+      {
+        "death_probability_threshold": 0.3,
+        "death_recall": 0.8170731707317073,
+        "death_precision": 0.33004926108374383,
+        "flagged_share": 0.5501355013550135
+      },
+      {
+        "death_probability_threshold": 0.4,
+        "death_recall": 0.6951219512195121,
+        "death_precision": 0.40425531914893614,
+        "flagged_share": 0.3821138211382114
+      },
+      {
+        "death_probability_threshold": 0.5,
+        "death_recall": 0.5121951219512195,
+        "death_precision": 0.5121951219512195,
+        "flagged_share": 0.2222222222222222
+      },
+      {
+        "death_probability_threshold": 0.6,
+        "death_recall": 0.21951219512195122,
+        "death_precision": 0.5625,
+        "flagged_share": 0.08672086720867209
+      }
+    ],
+    "calibration_slope": 1.3023541672376777,
+    "calibration_intercept": -0.6405955989338912,
+    "recalibrated_brier": 0.1470562022880101
+  },
+  "selection_bias_60_months": {
+    "excluded_patients": 60,
+    "kept_patients": 1844,
+    "excluded": {
+      "mean_age_at_diagnosis": 58.094500000000004,
+      "share_grade_3": 0.43333333333333335,
+      "share_er_positive": 0.7333333333333333,
+      "mean_tumor_size": 26.08879310344828
+    },
+    "kept": {
+      "mean_age_at_diagnosis": 61.184425162689806,
+      "share_grade_3": 0.4886117136659436,
+      "share_er_positive": 0.767353579175705,
+      "mean_tumor_size": 26.243488499452354
+    }
+  },
+  "split_variability": {
+    "n_splits": 20,
+    "auc_mean": 0.7549014192232516,
+    "auc_std": 0.024436079398134823,
+    "auc_min": 0.7097815925894451,
+    "auc_max": 0.790898274836407
+  },
+  "horizon_sensitivity": {
+    "horizon_months": 120,
+    "patients": 1648,
+    "alive_share": 0.5521844660194175,
+    "test_auc": 0.7176269676269676
+  },
+  "cox": {
+    "patients": 1815,
+    "apparent_c_index": 0.6739320165162502,
+    "cv_c_index_mean": 0.6725939596671932,
+    "cv_c_index_std": 0.015606252356070565,
+    "er_stratified_apparent_c_index": 0.679973697854099,
+    "er_stratified_cv_c_index_mean": 0.6685913073902044,
+    "er_stratified_hazard_ratios": {
+      "age_at_diagnosis": 1.0422449025771623,
+      "tumor_size": 1.5467272609607636,
+      "lymph_nodes_examined_positive": 1.0527714901718785,
+      "neoplasm_histologic_grade": 1.1484483169830506,
+      "her2_positive": 1.3414021310472435,
+      "pr_positive": 0.9064288883084555,
+      "chemotherapy": 1.5141351011344608,
+      "hormone_therapy": 1.0308449292602038,
+      "radio_therapy": 0.7856955163340551
+    }
+  },
+  "model_comparison": {
+    "n_splits": 20,
+    "metrics": {
+      "auc": {
+        "random_forest_mean": 0.7549014192232516,
+        "xgboost_mean": 0.7452494263618593,
+        "paired_diff_mean": -0.009651992861392057,
+        "paired_diff_std": 0.016720574186541822,
+        "xgboost_better_in_splits": 4
+      },
+      "brier": {
+        "random_forest_mean": 0.1663268156954371,
+        "xgboost_mean": 0.1505420982837677,
+        "paired_diff_mean": -0.015784717411669404,
+        "paired_diff_std": 0.005369259290627762,
+        "xgboost_better_in_splits": 20
+      },
+      "recall_at_0.5": {
+        "random_forest_mean": 0.4463414634146342,
+        "xgboost_mean": 0.23353658536585367,
+        "paired_diff_mean": -0.21280487804878048,
+        "paired_diff_std": 0.05074278416645895,
+        "xgboost_better_in_splits": 0
+      },
+      "flagged_share_at_0.5": {
+        "random_forest_mean": 0.2092140921409214,
+        "xgboost_mean": 0.0978319783197832,
+        "paired_diff_mean": -0.11138211382113823,
+        "paired_diff_std": 0.016446890554888998,
+        "xgboost_better_in_splits": 0
+      },
+      "precision_at_recall_0.5": {
+        "random_forest_mean": 0.4754324875846139,
+        "xgboost_mean": 0.45957591776907536,
+        "paired_diff_mean": -0.01585656981553843,
+        "paired_diff_std": 0.0321574859701148,
+        "xgboost_better_in_splits": 5
+      },
+      "precision_at_recall_0.8": {
+        "random_forest_mean": 0.36009399479030424,
+        "xgboost_mean": 0.34769827129844816,
+        "paired_diff_mean": -0.012395723491856137,
+        "paired_diff_std": 0.03135494790504464,
+        "xgboost_better_in_splits": 8
+      },
+      "recall_flagging_22pct": {
+        "random_forest_mean": 0.46829268292682913,
+        "xgboost_mean": 0.46036585365853655,
+        "paired_diff_mean": -0.007926829268292676,
+        "paired_diff_std": 0.02968124384101481,
+        "xgboost_better_in_splits": 4
+      }
+    }
+  },
+  "calibration_comparison": {
+    "n_splits": 20,
+    "models": {
+      "random_forest": {
+        "brier_raw": {
+          "mean": 0.16889979117488657,
+          "std": 0.005613087058866773
+        },
+        "brier_platt": {
+          "mean": 0.15065517492735897,
+          "std": 0.0042025217978522555
+        },
+        "brier_isotonic": {
+          "mean": 0.1545482857642447,
+          "std": 0.006055487347656808
+        },
+        "auc_raw": {
+          "mean": 0.7446885357355315,
+          "std": 0.0203623533818744
+        },
+        "auc_platt": {
+          "mean": 0.7446885357355315,
+          "std": 0.0203623533818744
+        },
+        "slope_raw": {
+          "mean": 1.2281502007255738,
+          "std": 0.1606818912168915
+        },
+        "intercept_raw": {
+          "mean": -0.667207855662169,
+          "std": 0.07771317063689902
+        },
+        "slope_platt": {
+          "mean": 0.9949884780729092,
+          "std": 0.2157981948933891
+        },
+        "intercept_platt": {
+          "mean": -0.004632420096325978,
+          "std": 0.25040601839492443
+        },
+        "mean_predicted_survival_raw": {
+          "mean": 0.6428119913473734,
+          "std": 0.009512380703820976
+        },
+        "mean_predicted_survival_platt": {
+          "mean": 0.7772809795883291,
+          "std": 0.007558874920746511
+        },
+        "observed_survival": {
+          "mean": 0.7777777777777779,
+          "std": 1.1390647892519134e-16
+        }
+      },
+      "xgboost": {
+        "brier_raw": {
+          "mean": 0.15178678557276726,
+          "std": 0.007323271169798465
+        },
+        "brier_platt": {
+          "mean": 0.15035435408353806,
+          "std": 0.005839538997697859
+        },
+        "brier_isotonic": {
+          "mean": 0.15369830951094626,
+          "std": 0.007320678136393731
+        },
+        "auc_raw": {
+          "mean": 0.7435667544828759,
+          "std": 0.025062942053368446
+        },
+        "auc_platt": {
+          "mean": 0.7435678167757288,
+          "std": 0.025064447535190805
+        },
+        "slope_raw": {
+          "mean": 0.7297890901565551,
+          "std": 0.11961668725605247
+        },
+        "intercept_raw": {
+          "mean": -0.20275684352964163,
+          "std": 0.1681200667607787
+        },
+        "slope_platt": {
+          "mean": 0.9798550397157669,
+          "std": 0.22594662218956155
+        },
+        "intercept_platt": {
+          "mean": -0.021628893539309503,
+          "std": 0.2725956971565421
+        },
+        "mean_predicted_survival_raw": {
+          "mean": 0.7912930250167847,
+          "std": 0.008260248068079134
+        },
+        "mean_predicted_survival_platt": {
+          "mean": 0.7771294206380844,
+          "std": 0.009564381118365153
+        },
+        "observed_survival": {
+          "mean": 0.7777777777777779,
+          "std": 1.1390647892519134e-16
+        }
+      }
+    },
+    "paired_brier": {
+      "brier_raw": {
+        "xgboost_minus_rf_mean": -0.017113005602119265,
+        "xgboost_minus_rf_std": 0.006240452400477993,
+        "xgboost_better_in_splits": 20
+      },
+      "brier_platt": {
+        "xgboost_minus_rf_mean": -0.00030082084382089677,
+        "xgboost_minus_rf_std": 0.004660019822822519,
+        "xgboost_better_in_splits": 10
+      },
+      "brier_isotonic": {
+        "xgboost_minus_rf_mean": -0.0008499762532984498,
+        "xgboost_minus_rf_std": 0.0053454340974443655,
+        "xgboost_better_in_splits": 13
+      }
+    }
+  },
+  "survival_model_comparison": {
+    "n_splits": 20,
+    "horizon_months": 60,
+    "penalizers_tried": [
+      0.05,
+      0.2,
+      1.0
+    ],
+    "cox_penalizer_mean": 0.21750000000000003,
+    "auc_5y": {
+      "classifier_mean": 0.7465570346296413,
+      "classifier_std": 0.02261442697554735,
+      "cox_mean": 0.7086055087622881,
+      "cox_std": 0.033065347065316775,
+      "paired_diff_mean": -0.03795152586735305,
+      "paired_diff_std": 0.026764454905635462,
+      "cox_better_in_splits": 2
+    },
+    "cindex": {
+      "classifier_mean": 0.6556697245306908,
+      "classifier_std": 0.018784361299484107,
+      "cox_mean": 0.6694784027812203,
+      "cox_std": 0.019516389426249538,
+      "paired_diff_mean": 0.013808678250529338,
+      "paired_diff_std": 0.01714509225674375,
+      "cox_better_in_splits": 15
+    }
+  }
+}

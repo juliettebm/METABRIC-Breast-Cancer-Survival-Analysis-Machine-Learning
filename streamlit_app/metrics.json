@@ -5,10 +5,18 @@
     0.6955198289036941,
     0.816190525704563
   ],
-  "brier_score": 0.16550199360050982,
+  "brier_score": 0.14705620228801014,
+  "brier_score_uncalibrated": 0.1655019936005098,
+  "calibration_slope": 1.0412173039087638,
+  "calibration_intercept": 0.0340973740944621,
+  "calibration_slope_uncalibrated": 1.3023541672376775,
+  "calibration_intercept_uncalibrated": -0.6405955989338912,
+  "mean_predicted_survival": 0.7765189296546203,
+  "mean_predicted_survival_uncalibrated": 0.6437548866166047,
+  "observed_survival": 0.7777777777777778,
   "cv_roc_auc_mean": 0.7518327378589388,
   "cv_roc_auc_std": 0.02845473285178146,
-  "cv_brier_mean": 0.16650770976367038,
+  "cv_brier_mean": 0.1665077097636704,
   "selected_parameters": {
     "classifier__min_samples_leaf": 3
   },
