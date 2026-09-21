@@ -191,11 +191,11 @@ With 78% of survivors, accuracy remains close to the majority baseline; discrimi
 | Hormone Therapy | 1.13e-04 | Reverse indication bias |
 
 These six subgroup comparisons are exploratory. Holm-adjusted p-values are,
-respectively, approximately 0.0200 (ER), 0.000133 (HER2), 0.000373 (PR),
+respectively, approximately 0.0216 (ER), 0.000133 (HER2), 0.000373 (PR),
 0.00342 (grade), 0.0145 (chemotherapy), and 0.000452 (hormone therapy). They
 remain below 0.05 but do not establish causal treatment effects.
 
-**Multivariate Cox model** (concordance = 0.67): after adjusting for all covariates, `age_at_diagnosis`, `tumor_size`, `lymph_nodes_examined_positive`, `neoplasm_histologic_grade`, `her2_status`, `chemotherapy` and `radio_therapy` remain independent prognostic factors. Notably, `er_status`, `pr_status` and `hormone_therapy` **lose their univariate significance** once adjusted (p=0.13, 0.36 and 0.89 respectively). For PR and hormone therapy this points to correlation with other variables and to indication bias. For ER it is misleading: the hazard is not proportional and the ER effect reverses over follow-up, so a single hazard ratio averages opposite effects (see *ER over time* under Robustness Checks).
+**Multivariate Cox model** (concordance = 0.67): after adjusting for all covariates, `age_at_diagnosis`, `tumor_size`, `lymph_nodes_examined_positive`, `neoplasm_histologic_grade`, `her2_status`, `chemotherapy` and `radio_therapy` remain independent prognostic factors. Notably, `er_status`, `pr_status` and `hormone_therapy` **lose their univariate significance** once adjusted (p=0.13, 0.38 and 0.89 respectively). For PR and hormone therapy this points to correlation with other variables and to indication bias. For ER it is misleading: the hazard is not proportional and the ER effect reverses over follow-up, so a single hazard ratio averages opposite effects (see *ER over time* under Robustness Checks). The Schoenfeld test also flags `age_at_diagnosis`, `tumor_size`, `hormone_therapy` and `pr_status_Positive` (p < 0.05); with about 1,900 patients the test is sensitive, but the multivariate hazard ratios should be read as averages over the follow-up rather than constant effects.
 ---
 
 ## Robustness Checks
@@ -222,7 +222,7 @@ remain below 0.05 but do not establish causal treatment effects.
 | Death recall when flagging the top 22% | 46.8% | 46.0% | -0.8% | 4/20 |
 | Death precision at 80% recall | 36.0% | 34.8% | -1.2% | 8/20 |
 
-XGBoost's higher AUC on the single reported split (0.782) does not hold across splits: averaged over 20 splits the forest is at least as good in discrimination. At the default threshold XGBoost flags about half as many patients, which explains its low death recall; when both flag the same share of patients, recalls are equivalent. XGBoost's only consistent advantage is the *raw* Brier score, and it disappears once both models are recalibrated (see Calibration below). Neither model was tuned exhaustively, so these are comparisons of two reasonable configurations, not of the best achievable models.
+XGBoost's higher AUC on the single reported split (0.782) does not hold across splits, and discrimination is essentially a tie: averaged over 20 splits the forest is slightly ahead (0.755 vs 0.745), whereas in the 5-fold cross-validation of notebook 05 XGBoost is slightly ahead (0.760 vs 0.752); every gap is within one standard deviation (about 0.03). At the default threshold XGBoost flags about half as many patients, which explains its low death recall; when both flag the same share of patients, recalls are equivalent. XGBoost's only consistent advantage is the *raw* Brier score, and it disappears once both models are recalibrated (see Calibration below). Neither model was tuned exhaustively, so these are comparisons of two reasonable configurations, not of the best achievable models.
 
 **Decision threshold** (test set, death = positive class; deployed default is 0.5):
 
@@ -238,7 +238,7 @@ The 51% death recall is a property of the threshold, not of the ranking (AUC is 
 
 **Calibration** (`figures/06_calibration.png`). The raw class-weighted forest is miscalibrated: it predicts 64.3% survival on average against 77.8% observed (calibration intercept -0.67, slope 1.23 on the death logit, averaged over 20 splits). This is consistent with `class_weight="balanced"` shifting probabilities towards the minority class (not tested in isolation). Raw XGBoost is closer (79.1% predicted, intercept -0.20) but over-confident (slope 0.73).
 
-Both models were recalibrated identically (Platt scaling and isotonic regression fitted on a calibration fold held out from the training data; the test fold is untouched), over 20 splits:
+Both models were recalibrated identically (Platt scaling and isotonic regression fitted on a calibration fold held out from the training data; the test fold is untouched), over 20 splits. Here each model is fitted on 75% of the training data (the rest is the calibration fold), so the raw Brier scores differ slightly from those of the comparison table above:
 
 | Brier score (mean ± sd over 20 splits) | Random Forest | XGBoost | Paired difference (XGBoost − RF) | Splits won by XGBoost |
 |---|---|---|---|---|
