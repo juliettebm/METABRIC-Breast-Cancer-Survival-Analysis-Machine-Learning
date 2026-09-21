@@ -143,15 +143,24 @@ def hex_to_rgba(hex_color, alpha=0.12):
 # ── Data loading ────────────────────────────────────────────────────────────
 @st.cache_data
 def load_data():
-    df = pd.read_csv(ROOT_DIR / "data" / "processed" / "df_survival.csv")
+    """Return (df_survival, df_raw, df_ml), or (None, None, None) if the local data is missing.
+
+    The model page only needs the versioned model bundle, so missing data must not stop the app.
+    """
     raw_candidates = [
         ROOT_DIR / "data" / "METABRIC_RNA_Mutation.csv",
         ROOT_DIR / "data" / "METABRIC_RNA_Mutation",
     ]
-    raw_path = next((path for path in raw_candidates if path.exists()), raw_candidates[0])
-    df_raw = pd.read_csv(raw_path, low_memory=False)
-    df_ml = pd.read_csv(ROOT_DIR / "data" / "processed" / "df_ml.csv")
-    return df, df_raw, df_ml
+    processed = ROOT_DIR / "data" / "processed"
+    raw_path = next((path for path in raw_candidates if path.exists()), None)
+    needed = [processed / "df_survival.csv", processed / "df_ml.csv"]
+    if raw_path is None or not all(path.exists() for path in needed):
+        return None, None, None
+    return (
+        pd.read_csv(needed[0]),
+        pd.read_csv(raw_path, low_memory=False),
+        pd.read_csv(needed[1]),
+    )
 
 @st.cache_resource
 def load_model():
@@ -163,10 +172,25 @@ model_bundle = load_model()
 rf = model_bundle["model"]
 feature_cols = model_bundle["raw_feature_cols"]
 
+DATA_AVAILABLE = df is not None
+
 # Original labels
-df_plot = df.copy()
-for col in ["er_status", "pr_status", "her2_status", "neoplasm_histologic_grade"]:
-    df_plot[col + "_label"] = df_raw[col].values
+if DATA_AVAILABLE:
+    df_plot = df.copy()
+    for col in ["er_status", "pr_status", "her2_status", "neoplasm_histologic_grade"]:
+        df_plot[col + "_label"] = df_raw[col].values
+
+
+def require_data():
+    """Stop the current page with instructions when the local data files are absent."""
+    if not DATA_AVAILABLE:
+        st.warning(
+            "This page needs the local dataset, which is not versioned. Download "
+            "`METABRIC_RNA_Mutation.csv` from Kaggle into `data/`, then run "
+            "`python prepare_data.py` from the repository root and restart the app. "
+            "The **ML Prediction** page works without it."
+        )
+        st.stop()
 
 # ── Sidebar ───────────────────────────────────────────────────────────────
 with st.sidebar:
@@ -177,6 +201,7 @@ with st.sidebar:
     page = st.radio(
         "Navigation",
         ["🏠 Home", "📈 Survival Analysis", "🤖 ML Prediction"],
+        index=0 if DATA_AVAILABLE else 2,
         label_visibility="collapsed"
     )
 
@@ -198,6 +223,7 @@ with st.sidebar:
 # PAGE 1 — HOME
 # ══════════════════════════════════════════════════════════════════════════
 if page == "🏠 Home":
+    require_data()
     st.markdown("# METABRIC Survival Dashboard")
     st.markdown("**Survival analysis and ML prediction on breast cancer**")
     st.markdown("---")
@@ -292,6 +318,7 @@ if page == "🏠 Home":
 # PAGE 2 — SURVIVAL ANALYSIS
 # ══════════════════════════════════════════════════════════════════════════
 elif page == "📈 Survival Analysis":
+    require_data()
     st.markdown("# Survival Analysis — Kaplan-Meier")
     st.markdown("Compare survival curves between clinical subgroups.")
     st.markdown("---")

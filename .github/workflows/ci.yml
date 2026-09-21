@@ -32,6 +32,9 @@ jobs:
           pandas
           pytest
           scikit-learn==1.9.1
+          lifelines==0.30.3
+          plotly==7.1.0
+          streamlit==1.64.0
 
       - name: Run artifact and inference smoke tests
         run: python -m pytest -q

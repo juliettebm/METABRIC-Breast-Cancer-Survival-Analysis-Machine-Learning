@@ -20,6 +20,8 @@ Checks
    recalibration fitted on a calibration fold held out from the training data.
 9. Survival model: penalised Cox trained on ALL patients (censored ones included) compared with
    the 5-year classifier on the same test patients (AUC at 5 years, C-index).
+10. ER over time: Schoenfeld test, date at which the ER+/ER- Kaplan-Meier curves cross with a
+    bootstrap interval and patients still at risk, and hazard ratios by follow-up period.
 """
 
 from pathlib import Path
@@ -394,6 +396,95 @@ def _survival_model_comparison(raw: pd.DataFrame, n_splits: int, horizon: int) -
     return out
 
 
+def er_over_time(raw: pd.DataFrame, n_bootstraps: int = 1000, grid_min: int = 24, grid_max: int = 300) -> dict:
+    """How the ER effect changes with follow-up (proportional hazards is violated for ER).
+
+    The crossing search starts at ``grid_min`` months: in the first months both curves are
+    nearly identical and the sign of their difference is noise, not a crossing.
+    """
+    from lifelines import CoxPHFitter, KaplanMeierFitter
+    from lifelines.statistics import proportional_hazard_test
+
+    df = pd.DataFrame({
+        "T": raw["overall_survival_months"].astype(float),
+        "E": 1 - raw["overall_survival"],  # dataset encodes 1 = alive
+        "er_positive": (raw["er_status"] == "Positive").astype(int),
+        "age_at_diagnosis": raw["age_at_diagnosis"],
+        "tumor_size": np.log1p(raw["tumor_size"]),
+        "lymph_nodes_examined_positive": raw["lymph_nodes_examined_positive"],
+        "neoplasm_histologic_grade": pd.to_numeric(raw["neoplasm_histologic_grade"], errors="coerce"),
+        "her2_positive": (raw["her2_status"] == "Positive").astype(int),
+    }).dropna().reset_index(drop=True)
+    df = df[df["T"] > 0].reset_index(drop=True)
+    grid = np.arange(grid_min, grid_max + 1)
+
+    def survival_on_grid(frame):
+        curves = []
+        for flag in (1, 0):
+            group = frame[frame["er_positive"] == flag]
+            curves.append(KaplanMeierFitter().fit(group["T"], group["E"]).survival_function_at_times(grid).to_numpy())
+        return curves[0] - curves[1]  # ER+ minus ER-
+
+    def first_crossing(difference):
+        """First month after which ER+ survival is no longer above ER- (None if it never crosses)."""
+        above = np.flatnonzero(difference > 0)
+        if above.size == 0:
+            return None
+        after = np.flatnonzero(difference[above[0]:] <= 0)
+        return None if after.size == 0 else int(grid[above[0] + after[0]])
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        point = first_crossing(survival_on_grid(df))
+        rng = np.random.default_rng(SEED)
+        boot = []
+        for _ in range(n_bootstraps):
+            sample = df.iloc[rng.integers(0, len(df), len(df))]
+            if sample["er_positive"].nunique() == 2:
+                boot.append(first_crossing(survival_on_grid(sample)))
+
+        adjusted_cols = ["age_at_diagnosis", "tumor_size", "lymph_nodes_examined_positive",
+                         "neoplasm_histologic_grade", "her2_positive", "er_positive"]
+        full = CoxPHFitter().fit(df[adjusted_cols + ["T", "E"]], "T", "E")
+        schoenfeld = proportional_hazard_test(full, df[adjusted_cols + ["T", "E"]], time_transform="rank")
+        er_test = schoenfeld.summary.loc["er_positive"]
+
+        periods = []
+        for start, end in ((0, 60), (60, 120), (120, None)):
+            window = df[df["T"] > start].copy()
+            if end is not None:
+                window["E"] = np.where(window["T"] > end, 0, window["E"])
+                window["T"] = window["T"].clip(upper=end)
+            window["T"] = window["T"] - start
+            row = {"start_months": start, "end_months": end, "patients_at_risk_at_start": int(len(window)),
+                   "deaths_in_window": int(window["E"].sum())}
+            for label, cols in (("unadjusted", ["er_positive"]), ("adjusted", adjusted_cols)):
+                fit = CoxPHFitter().fit(window[cols + ["T", "E"]], "T", "E")
+                summary = fit.summary.loc["er_positive"]
+                row[f"hr_{label}"] = float(summary["exp(coef)"])
+                row[f"hr_{label}_ci"] = [float(summary["exp(coef) lower 95%"]), float(summary["exp(coef) upper 95%"])]
+                row[f"p_{label}"] = float(summary["p"])
+            periods.append(row)
+
+    crossed = [b for b in boot if b is not None]
+    at_risk = None
+    if point is not None:
+        at_risk = {
+            "er_positive": int(((df["er_positive"] == 1) & (df["T"] >= point)).sum()),
+            "er_negative": int(((df["er_positive"] == 0) & (df["T"] >= point)).sum()),
+        }
+    return {
+        "patients": int(len(df)),
+        "schoenfeld_er_p_value": float(er_test["p"]),
+        "crossing_months_point_estimate": point,
+        "patients_at_risk_at_crossing": at_risk,
+        "bootstrap_share_with_crossing": float(len(crossed) / max(len(boot), 1)),
+        "bootstrap_crossing_median": float(np.median(crossed)) if crossed else None,
+        "bootstrap_crossing_95_interval": [float(x) for x in np.quantile(crossed, [0.025, 0.975])] if crossed else None,
+        "hazard_ratio_by_period": periods,
+    }
+
+
 def cox_checks(raw: pd.DataFrame) -> dict:
     """Cross-validated C-index of the clinical Cox model and an ER-stratified fit."""
     # lifelines warns about non-unique indices it rebuilds internally when splitting folds.
@@ -464,6 +555,7 @@ def main() -> None:
         "model_comparison": model_comparison(X, y, genomic),
         "calibration_comparison": calibration_comparison(X, y, genomic),
         "survival_model_comparison": survival_model_comparison(raw),
+        "er_over_time": er_over_time(raw),
     }
     (report_dir / "robustness_metrics.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
     print(json.dumps(results, indent=2))

@@ -40,7 +40,7 @@
         "flagged_share": 0.08672086720867209
       }
     ],
-    "calibration_slope": 1.3023541672376777,
+    "calibration_slope": 1.3023541672376775,
     "calibration_intercept": -0.6405955989338912,
     "recalibrated_brier": 0.1470562022880101
   },
@@ -151,16 +151,16 @@
     "models": {
       "random_forest": {
         "brier_raw": {
-          "mean": 0.16889979117488657,
-          "std": 0.005613087058866773
+          "mean": 0.16889979117488652,
+          "std": 0.005613087058866771
         },
         "brier_platt": {
-          "mean": 0.15065517492735897,
+          "mean": 0.15065517492735894,
           "std": 0.0042025217978522555
         },
         "brier_isotonic": {
           "mean": 0.1545482857642447,
-          "std": 0.006055487347656808
+          "std": 0.0060554873476567975
         },
         "auc_raw": {
           "mean": 0.7446885357355315,
@@ -172,27 +172,27 @@
         },
         "slope_raw": {
           "mean": 1.2281502007255738,
-          "std": 0.1606818912168915
+          "std": 0.16068189121689153
         },
         "intercept_raw": {
-          "mean": -0.667207855662169,
-          "std": 0.07771317063689902
+          "mean": -0.6672078556621689,
+          "std": 0.07771317063689906
         },
         "slope_platt": {
           "mean": 0.9949884780729092,
           "std": 0.2157981948933891
         },
         "intercept_platt": {
-          "mean": -0.004632420096325978,
+          "mean": -0.004632420096325998,
           "std": 0.25040601839492443
         },
         "mean_predicted_survival_raw": {
           "mean": 0.6428119913473734,
-          "std": 0.009512380703820976
+          "std": 0.009512380703820954
         },
         "mean_predicted_survival_platt": {
           "mean": 0.7772809795883291,
-          "std": 0.007558874920746511
+          "std": 0.007558874920746487
         },
         "observed_survival": {
           "mean": 0.7777777777777779,
@@ -252,18 +252,18 @@
     },
     "paired_brier": {
       "brier_raw": {
-        "xgboost_minus_rf_mean": -0.017113005602119265,
-        "xgboost_minus_rf_std": 0.006240452400477993,
+        "xgboost_minus_rf_mean": -0.017113005602119258,
+        "xgboost_minus_rf_std": 0.006240452400477992,
         "xgboost_better_in_splits": 20
       },
       "brier_platt": {
         "xgboost_minus_rf_mean": -0.00030082084382089677,
-        "xgboost_minus_rf_std": 0.004660019822822519,
+        "xgboost_minus_rf_std": 0.0046600198228225215,
         "xgboost_better_in_splits": 10
       },
       "brier_isotonic": {
-        "xgboost_minus_rf_mean": -0.0008499762532984498,
-        "xgboost_minus_rf_std": 0.0053454340974443655,
+        "xgboost_minus_rf_mean": -0.0008499762532984387,
+        "xgboost_minus_rf_std": 0.005345434097444363,
         "xgboost_better_in_splits": 13
       }
     }
@@ -295,5 +295,76 @@
       "paired_diff_std": 0.01714509225674375,
       "cox_better_in_splits": 15
     }
+  },
+  "er_over_time": {
+    "patients": 1815,
+    "schoenfeld_er_p_value": 7.562712876962524e-12,
+    "crossing_months_point_estimate": 175,
+    "patients_at_risk_at_crossing": {
+      "er_positive": 389,
+      "er_negative": 113
+    },
+    "bootstrap_share_with_crossing": 1.0,
+    "bootstrap_crossing_median": 175.0,
+    "bootstrap_crossing_95_interval": [
+      146.0,
+      224.02499999999998
+    ],
+    "hazard_ratio_by_period": [
+      {
+        "start_months": 0,
+        "end_months": 60,
+        "patients_at_risk_at_start": 1815,
+        "deaths_in_window": 398,
+        "hr_unadjusted": 0.38015399950673284,
+        "hr_unadjusted_ci": [
+          0.3111861182157536,
+          0.4644071662630128
+        ],
+        "p_unadjusted": 2.8143532004855653e-21,
+        "hr_adjusted": 0.4194374601839492,
+        "hr_adjusted_ci": [
+          0.33173619098188184,
+          0.5303243595003793
+        ],
+        "p_adjusted": 3.884746305510245e-13
+      },
+      {
+        "start_months": 60,
+        "end_months": 120,
+        "patients_at_risk_at_start": 1361,
+        "deaths_in_window": 306,
+        "hr_unadjusted": 1.385252532143973,
+        "hr_unadjusted_ci": [
+          1.006571426572805,
+          1.9063968310176285
+        ],
+        "p_unadjusted": 0.04548240492063825,
+        "hr_adjusted": 1.1972238513985274,
+        "hr_adjusted_ci": [
+          0.8453430814185389,
+          1.6955777859473105
+        ],
+        "p_adjusted": 0.310701030843279
+      },
+      {
+        "start_months": 120,
+        "end_months": null,
+        "patients_at_risk_at_start": 861,
+        "deaths_in_window": 337,
+        "hr_unadjusted": 2.2291920049260634,
+        "hr_unadjusted_ci": [
+          1.5773809126110792,
+          3.15034685350698
+        ],
+        "p_unadjusted": 5.554970201932168e-06,
+        "hr_adjusted": 1.5806393266833916,
+        "hr_adjusted_ci": [
+          1.0907606077015146,
+          2.2905307208727286
+        ],
+        "p_adjusted": 0.015564270803449503
+      }
+    ]
   }
 }

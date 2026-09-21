@@ -1,4 +1,5 @@
 import ast
+import sys
 import json
 from pathlib import Path
 import subprocess
@@ -8,13 +9,18 @@ import pandas as pd
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
 
 
 def test_python_and_metadata_files_are_valid():
     """Static smoke test that does not require the restricted Kaggle data."""
     for relative_path in (
         "train_model.py",
+        "prepare_data.py",
+        "robustness_checks.py",
         "src/metabric/training.py",
+        "src/metabric/prepare_data.py",
+        "src/metabric/robustness.py",
         "streamlit_app/app.py",
     ):
         path = ROOT / relative_path
@@ -145,3 +151,39 @@ def test_readme_matches_survival_model_comparison():
     auc, cindex = survival["auc_5y"], survival["cindex"]
     assert f"{auc['classifier_mean']:.3f} ± {auc['classifier_std']:.3f} | {auc['cox_mean']:.3f} ± {auc['cox_std']:.3f}" in readme
     assert f"{cindex['classifier_mean']:.3f} ± {cindex['classifier_std']:.3f} | {cindex['cox_mean']:.3f} ± {cindex['cox_std']:.3f}" in readme
+
+
+def test_readme_matches_er_over_time():
+    er = _robustness()["er_over_time"]
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    low, high = er["bootstrap_crossing_95_interval"]
+    assert f"cross at **{er['crossing_months_point_estimate']} months**" in readme
+    assert f"bootstrap 95% interval {low:.0f}–{high:.0f}" in readme
+    first, last = er["hazard_ratio_by_period"][0], er["hazard_ratio_by_period"][-1]
+    assert first["hr_adjusted"] < 1 < last["hr_adjusted"]  # protective early, adverse late
+
+
+def test_processed_data_can_be_regenerated_from_raw():
+    """Local-only: needs the raw Kaggle file, which is not versioned."""
+    from metabric.prepare_data import TOP_N_SURVIVAL, build_processed_frames
+    from metabric.training import load_raw
+
+    try:
+        raw = load_raw()
+    except FileNotFoundError:
+        pytest.skip("raw METABRIC file not available")
+    df_survival, df_ml, groups = build_processed_frames(raw)
+    assert len(df_survival) == len(df_ml) == len(raw)
+    assert df_survival.shape[1] == len(groups["clinical"]) + TOP_N_SURVIVAL + 2
+    assert df_ml.shape[1] == len(groups["clinical"]) + len(groups["genes"]) + 2
+
+
+def test_app_starts_and_prediction_page_works():
+    """The model page must render whether or not the local data files exist."""
+    pytest.importorskip("plotly")
+    pytest.importorskip("lifelines")
+    app_test = pytest.importorskip("streamlit.testing.v1")
+    app = app_test.AppTest.from_file(str(ROOT / "streamlit_app" / "app.py"), default_timeout=120).run()
+    assert not app.exception
+    app.sidebar.radio[0].set_value("🤖 ML Prediction").run()
+    assert not app.exception

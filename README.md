@@ -51,7 +51,8 @@ Neither the raw CSV nor the processed dataframes derived from it are included in
 │   ├── app.py                           # interactive dashboard
 │   ├── rf_model.joblib                  # trained Random Forest model (versioned so the demo runs)
 │   └── feature_cols.joblib              # feature column order expected by the model
-├── robustness_checks.py                 # permutation test, thresholds, calibration, split/horizon sensitivity, Cox CV
+├── prepare_data.py                      # regenerates data/processed from the raw file (same logic as notebook 02)
+├── robustness_checks.py                 # permutation test, thresholds, calibration, split/horizon sensitivity, Cox CV, ER over time
 ├── requirements.txt
 ├── .gitignore
 └── README.md
@@ -85,7 +86,15 @@ pip install -r requirements.txt
 
 Download `METABRIC_RNA_Mutation.csv` from Kaggle and place it in `data/`.
 
-### 4. Run the notebooks in order
+### 4. Generate the processed data (descriptive analyses and Kaplan-Meier page)
+
+```bash
+python prepare_data.py
+```
+
+This writes `data/processed/df_survival.csv`, `df_ml.csv` and `feature_groups.json` from the raw file with the same logic as notebook 02 (checked to give identical files). The predictive model does not need them: `train_model.py` starts from the raw file, and the **ML Prediction** page of the app runs without any local data (the other pages show instructions if the files are missing).
+
+### 5. Run the notebooks in order
 
 Notebooks must be run in order (each one depends on the outputs of the previous one):
 
@@ -101,7 +110,7 @@ training fold, run:
 python train_model.py
 ```
 
-### 5. Launch the Streamlit dashboard
+### 6. Launch the Streamlit dashboard
 
 ```bash
 cd streamlit_app
@@ -186,7 +195,7 @@ respectively, approximately 0.0200 (ER), 0.000133 (HER2), 0.000373 (PR),
 0.00342 (grade), 0.0145 (chemotherapy), and 0.000452 (hormone therapy). They
 remain below 0.05 but do not establish causal treatment effects.
 
-**Multivariate Cox model** (concordance = 0.67): after adjusting for all covariates, `age_at_diagnosis`, `tumor_size`, `lymph_nodes_examined_positive`, `neoplasm_histologic_grade`, `her2_status`, `chemotherapy` and `radio_therapy` remain independent prognostic factors. Notably, `er_status`, `pr_status` and `hormone_therapy` **lose their univariate significance** once adjusted (p=0.13, 0.36 and 0.89 respectively), confirming that their apparent effect on survival was driven by indication bias and correlation with other variables rather than an independent effect.
+**Multivariate Cox model** (concordance = 0.67): after adjusting for all covariates, `age_at_diagnosis`, `tumor_size`, `lymph_nodes_examined_positive`, `neoplasm_histologic_grade`, `her2_status`, `chemotherapy` and `radio_therapy` remain independent prognostic factors. Notably, `er_status`, `pr_status` and `hormone_therapy` **lose their univariate significance** once adjusted (p=0.13, 0.36 and 0.89 respectively). For PR and hormone therapy this points to correlation with other variables and to indication bias. For ER it is misleading: the hazard is not proportional and the ER effect reverses over follow-up, so a single hazard ratio averages opposite effects (see *ER over time* under Robustness Checks).
 ---
 
 ## Robustness Checks
@@ -247,6 +256,16 @@ After recalibration the two models are indistinguishable (paired Brier differenc
 | C-index (all test patients, censored included) | 0.656 ± 0.019 | 0.669 ± 0.020 | +0.014 ± 0.017 | 15/20 |
 
 Keeping the censored patients does **not** improve 5-year discrimination: the Cox model is clearly worse at the 5-year AUC (it models the whole follow-up rather than the 5-year outcome). It ranks patients slightly better over the full follow-up (C-index), which is what a survival model is designed for. This gives no evidence that excluding the 60 censored patients biases the classifier, but it does not prove that censoring is independent of the outcome. The Cox model was not tuned beyond its penalty, and its gene selection is disadvantaged by the missing 5-year label, so it is a fair benchmark, not an upper bound.
+
+**ER over time** (`er_over_time` in `robustness.py`; 1,815 patients with complete covariates). ER violates the proportional-hazards assumption (Schoenfeld test on the adjusted Cox model, p = 7.6e-12). The Kaplan-Meier curves of ER-positive and ER-negative patients cross at **175 months** (bootstrap 95% interval 146–224, 1,000 resamples; crossings before 24 months are ignored because the curves are then almost identical). At that time 389 ER-positive and 113 ER-negative patients are still at risk, which explains the wide interval. Hazard ratios of ER-positive vs ER-negative by follow-up period (patients still alive at the start of each window; adjusted for age, tumor size, positive nodes, grade and HER2):
+
+| Follow-up period | Patients at start | Deaths | HR unadjusted (95% CI) | HR adjusted (95% CI) | p (adjusted) |
+|---|---|---|---|---|---|
+| 0–60 months | 1815 | 398 | 0.38 (0.31–0.46) | 0.42 (0.33–0.53) | <0.001 |
+| 60–120 months | 1361 | 306 | 1.39 (1.01–1.91) | 1.20 (0.85–1.70) | 0.311 |
+| After 120 months | 861 | 337 | 2.23 (1.58–3.15) | 1.58 (1.09–2.29) | 0.016 |
+
+ER-positive status is strongly protective during the first five years and adverse after ten years (late relapses). Because these effects have opposite signs, the single hazard ratio of the overall multivariate model is close to 1 and not significant. This is a descriptive analysis: each window conditions on survival to its start, so hazard ratios in later windows compare survivors and are not causal.
 
 ---
 
