@@ -24,7 +24,7 @@ Survival analysis and machine learning prediction on breast cancer, built on the
 - **Source**: [Kaggle: raghadalharbi/breast-cancer-gene-expression-profiles-metabric](https://www.kaggle.com/datasets/raghadalharbi/breast-cancer-gene-expression-profiles-metabric)
 - **Size**: 1,904 patients, 693 variables (clinical, biomarkers, treatments, gene expression, gene mutations)
 
-Neither the raw CSV nor the processed dataframes derived from it are included in this repository (see [`.gitignore`](.gitignore); the Kaggle source restricts redistribution). Download `METABRIC_RNA_Mutation.csv` from Kaggle and place it in `data/`, then run the notebooks in order to generate `data/processed/`.
+Neither the raw CSV nor the processed dataframes derived from it are included in the current repository tree (see [`.gitignore`](.gitignore)). Kaggle labels this dataset “Open Database / Database Contents”, and cBioPortal states that its public datasets are generally available under the ODC Open Database License with attribution. The file is nevertheless kept out of Git to avoid duplicating a third-party dataset and to preserve clear provenance. Download `METABRIC_RNA_Mutation.csv` from Kaggle, keep that exact filename, and place it in `data/`; the scripts also accept the legacy extensionless filename locally.
 
 ---
 
@@ -150,6 +150,11 @@ Binary classification of 5-year survival (`survived_5y = overall_survival_months
 
 The pipeline is also evaluated with nested stratified cross-validation (3-fold inner model selection, 5-fold outer evaluation). The held-out AUC is accompanied by a percentile bootstrap 95% confidence interval and the Brier score provides a probability-calibration diagnostic. These internal estimates do not replace validation on an independent external cohort.
 
+`cohort` is excluded because it is a batch/period identifier rather than an
+ordered biological measurement. NPI is also excluded from prediction because
+it is derived from tumor size, histologic grade and positive lymph nodes, which
+are already supplied directly.
+
 ---
 
 ## Key Results
@@ -159,10 +164,10 @@ Test set: 369 patients (82 deaths before 5 years, 287 survivors).
 | Model | ROC-AUC | Accuracy | Survivor Recall | Deceased Recall |
 |---|---|---|---|---|
 | Baseline (Dummy) | 0.500 | 78% | 100% | 0% |
-| **Random Forest** | **0.778** | **79%** | **86%** | **54%** |
-| XGBoost | 0.756 | 78% | 91% | 35% |
+| **Random Forest (deployed, tuned)** | **0.758** | **78%** | **86%** | **51%** |
+| XGBoost (benchmark) | 0.782 | 79% | 94% | 26% |
 
-With 78% of survivors, accuracy remains close to the majority baseline; discrimination and minority-class recall are therefore more informative. For the leakage-free retrained artifact, the nested 5-fold CV AUC is 0.757 ± 0.025. On the untouched test set (369 patients), AUC is 0.778 (bootstrap 95% CI 0.717–0.834), Brier score is 0.160, and death recall is 53.7%. Random Forest is retained in the Streamlit demonstrator for its robustness and transparent reproducibility. The values in `streamlit_app/metrics.json` are the source of truth for the deployed retrained artifact.
+With 78% of survivors, accuracy remains close to the majority baseline; discrimination and minority-class recall are therefore more informative. For the leakage-free deployed artifact, nested 5-fold CV AUC is 0.752 ± 0.028. On the untouched test set (369 patients), its AUC is 0.758 (bootstrap 95% CI 0.696–0.816), Brier score is 0.166, and death recall is 51.2%. XGBoost ranks probabilities better on this split (AUC 0.782; Brier 0.144) but detects fewer deaths at the default threshold (25.6%). The tuned Random Forest remains the deployed educational model because its canonical training path is reproducible and its default-threshold death sensitivity is materially higher; neither model is clinically validated. `streamlit_app/metrics.json` is the source of truth for the deployed artifact, while executed notebook 05 is the source for the side-by-side benchmark.
 
 | Variable (Kaplan-Meier) | Log-rank p-value | Proportional hazards |
 |---|---|---|
@@ -172,6 +177,11 @@ With 78% of survivors, accuracy remains close to the majority baseline; discrimi
 | Histologic Grade | 1.14e-03 | Holds |
 | Chemotherapy | 7.26e-03 | Indication bias |
 | Hormone Therapy | 1.13e-04 | Reverse indication bias |
+
+These six subgroup comparisons are exploratory. Holm-adjusted p-values are,
+respectively, approximately 0.0200 (ER), 0.000133 (HER2), 0.000373 (PR),
+0.00342 (grade), 0.0145 (chemotherapy), and 0.000452 (hormone therapy). They
+remain below 0.05 but do not establish causal treatment effects.
 
 **Multivariate Cox model** (concordance = 0.67): after adjusting for all covariates, `age_at_diagnosis`, `tumor_size`, `lymph_nodes_examined_positive`, `neoplasm_histologic_grade`, `her2_status`, `chemotherapy` and `radio_therapy` remain independent prognostic factors. Notably, `er_status`, `pr_status` and `hormone_therapy` **lose their univariate significance** once adjusted (p=0.13, 0.36 and 0.89 respectively), confirming that their apparent effect on survival was driven by indication bias and correlation with other variables rather than an independent effect.
 ---
@@ -187,6 +197,11 @@ Both variables are heavily right-skewed; the log transform stabilises variance a
 **Why reduce ~660 genomic variables, and where?**
 Raw gene expression and mutation data is extremely high-dimensional relative to the cohort size (1,904 patients). A variance filter (label-free) is applied during preprocessing. The top 25 genes kept for the descriptive Cox dataframe are chosen on the full cohort (an exploratory, non-predictive analysis). For the ML models, the top 50 genes are selected after the train/test split, on the training set only, so that the test AUC is not inflated by leakage.
 
+Because the descriptive top-25 genes were selected using correlation with
+survival time on the same cohort, their subsequent univariate Cox p-values are
+optimistic and hypothesis-generating only. The final multivariate Cox model is
+clinical-only and does not use those selected genes.
+
 For predictive modelling, every learned preprocessing step is fitted on the
 training fold. Notebook 02's cohort-wide preprocessing is retained only for
 descriptive Kaplan-Meier/Cox analyses and is not consumed by the production
@@ -198,7 +213,11 @@ model artifact.
 
 This project is for **educational purposes only**. The model is trained on historical data (METABRIC, 2000-2010) and is **not a clinical decision-making tool**.
 
-The model has no external validation and must not be used for patient care. The app is an educational Streamlit demonstrator, not a decision-support application.
+The model has no external or temporal validation and must not be used for patient care. METABRIC is a single historical cohort from 2000–2010; treatment patterns, including trastuzumab and endocrine therapy, have since changed. The app is an educational Streamlit demonstrator, not a decision-support application. Progression toward clinical use would require independent cohorts and later time periods, subgroup performance and calibration, a clinically justified decision threshold reflecting error costs, a censoring-aware survival model, prospective evaluation, and an appropriate regulatory and quality-management framework.
+
+The versioned `.joblib` model is produced by this repository's own training
+code. Joblib/pickle artifacts can execute code while loading; never replace it
+with or load an artifact from an untrusted source.
 
 ---
 

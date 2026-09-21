@@ -21,7 +21,7 @@ RAW_PATHS = [ROOT / "data" / "METABRIC_RNA_Mutation.csv", ROOT / "data" / "METAB
 
 NUMERIC = [
     "age_at_diagnosis", "tumor_size", "mutation_count",
-    "nottingham_prognostic_index", "lymph_nodes_examined_positive", "cohort",
+    "lymph_nodes_examined_positive",
 ]
 ORDINAL = ["cellularity", "neoplasm_histologic_grade"]
 ORDINAL_CATEGORIES = [["Low", "Moderate", "High"], [1.0, 2.0, 3.0]]
@@ -36,6 +36,10 @@ NON_FEATURES = {
     "patient_id", "overall_survival_months", "overall_survival", "death_from_cancer",
     "tumor_stage", "3-gene_classifier_subtype", "primary_tumor_laterality",
     "er_status_measured_by_ihc", "her2_status_measured_by_snp6", "oncotree_code",
+    # Cohort is a batch/period identifier, not an ordered biological quantity.
+    # NPI is derived from tumor size, grade and positive lymph nodes, which are
+    # already represented directly; excluding it avoids deterministic overlap.
+    "cohort", "nottingham_prognostic_index",
 }
 
 

@@ -144,7 +144,12 @@ def hex_to_rgba(hex_color, alpha=0.12):
 @st.cache_data
 def load_data():
     df = pd.read_csv(ROOT_DIR / "data" / "processed" / "df_survival.csv")
-    df_raw = pd.read_csv(ROOT_DIR / "data" / "METABRIC_RNA_Mutation.csv", low_memory=False)
+    raw_candidates = [
+        ROOT_DIR / "data" / "METABRIC_RNA_Mutation.csv",
+        ROOT_DIR / "data" / "METABRIC_RNA_Mutation",
+    ]
+    raw_path = next((path for path in raw_candidates if path.exists()), raw_candidates[0])
+    df_raw = pd.read_csv(raw_path, low_memory=False)
     df_ml = pd.read_csv(ROOT_DIR / "data" / "processed" / "df_ml.csv")
     return df, df_raw, df_ml
 
@@ -400,7 +405,8 @@ elif page == "📈 Survival Analysis":
     # Dynamic interpretations
     interpretations = {
         "ER Status": """
-        <b>p=0.02</b> — Significant difference. The curves cross around 200 months:
+        <b>p=0.02</b> — Significant difference. The curves converge/cross late
+        (roughly 150–200 months; the visual crossing time is imprecise):
         a late-relapse phenomenon in ER+ patients, well documented in METABRIC.
         The proportional hazards assumption is violated for this variable.
         """,
@@ -451,7 +457,6 @@ elif page == "🤖 ML Prediction":
 
         age = st.slider("Age at diagnosis", 20, 95, 55)
         tumor_size = st.slider("Tumor size (mm)", 1, 150, 25)
-        npi = st.slider("Nottingham Prognostic Index", 1.0, 7.0, 3.5, 0.1)
         lymph_nodes = st.slider("Positive lymph nodes", 0, 20, 0)
         grade = st.selectbox("Histologic grade", [1, 2, 3], index=1)
         mutation_count = st.slider("Mutation count", 0, 30, 5)
@@ -474,7 +479,6 @@ elif page == "🤖 ML Prediction":
         input_data = pd.DataFrame([model_bundle["defaults"]], columns=feature_cols)
         input_data.loc[0, "age_at_diagnosis"] = age
         input_data.loc[0, "tumor_size"] = np.log1p(tumor_size)
-        input_data.loc[0, "nottingham_prognostic_index"] = npi
         input_data.loc[0, "lymph_nodes_examined_positive"] = lymph_nodes
         input_data.loc[0, "neoplasm_histologic_grade"] = float(grade)
         input_data.loc[0, "mutation_count"] = np.log1p(mutation_count)

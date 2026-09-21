@@ -1,6 +1,7 @@
 import ast
 import json
 from pathlib import Path
+import subprocess
 
 import joblib
 import pandas as pd
@@ -29,6 +30,7 @@ def test_model_bundle_predicts_from_raw_schema():
     bundle = joblib.load(ROOT / "streamlit_app" / "rf_model.joblib")
     required = {"model", "raw_feature_cols", "defaults", "feature_importances", "metrics"}
     assert required <= set(bundle)
+    assert not {"cohort", "nottingham_prognostic_index"} & set(bundle["raw_feature_cols"])
     row = pd.DataFrame([bundle["defaults"]], columns=bundle["raw_feature_cols"])
     probability = bundle["model"].predict_proba(row)
     assert probability.shape == (1, 2)
@@ -52,8 +54,26 @@ def test_readme_matches_retrained_metrics():
     assert expected in readme
     report = metrics["classification_report"]
     table_row = (
-        f"| **Random Forest** | **{metrics['roc_auc']:.3f}** | "
+        f"| **Random Forest (deployed, tuned)** | **{metrics['roc_auc']:.3f}** | "
         f"**{metrics['accuracy']:.0%}** | **{report['1']['recall']:.0%}** | "
         f"**{report['0']['recall']:.0%}** |"
     )
     assert table_row in readme
+
+    benchmark = json.loads(
+        (ROOT / "streamlit_app" / "benchmark_metrics.json").read_text(encoding="utf-8")
+    )
+    xgb = next(row for row in benchmark if row["model"] == "XGBoost")
+    xgb_row = (
+        f"| XGBoost (benchmark) | {xgb['test_auc']:.3f} | "
+        f"{xgb['accuracy']:.0%} | {xgb['survivor_recall']:.0%} | "
+        f"{xgb['death_recall']:.0%} |"
+    )
+    assert xgb_row in readme
+
+
+def test_third_party_data_is_not_tracked():
+    tracked = subprocess.check_output(
+        ["git", "ls-files", "data"], cwd=ROOT, text=True
+    ).strip()
+    assert tracked == ""
