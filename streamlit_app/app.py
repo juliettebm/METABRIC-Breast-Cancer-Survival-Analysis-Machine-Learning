@@ -209,10 +209,10 @@ with st.sidebar:
     st.markdown("""
     <div style='font-size:0.78rem; color:#5a6a7a; line-height:1.6'>
     <b style='color:#8892a4'>Dataset</b><br>
-    METABRIC — 1,904 patients<br>
+    METABRIC - 1,904 patients<br>
     UK/Canada breast cancer<br><br>
     <b style='color:#8892a4'>Source</b><br>
-    Kaggle — raghadalharbi<br><br>
+    Kaggle - raghadalharbi<br><br>
     <b style='color:#8892a4'>Author</b><br>
     Juliette Bouli-Mengue<br>
     Clinical Research Associate → Healthcare Data Science
@@ -220,7 +220,7 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════
-# PAGE 1 — HOME
+# PAGE 1 - HOME
 # ══════════════════════════════════════════════════════════════════════════
 if page == "🏠 Home":
     require_data()
@@ -266,23 +266,23 @@ if page == "🏠 Home":
     with col_left:
         st.markdown("<div class='section-header'>Research questions</div>", unsafe_allow_html=True)
         st.markdown("""
-        **1. Survival Analysis**
-        Which clinical and genomic factors are associated with overall survival?
+**1. Survival Analysis**  
+Which clinical and genomic factors are associated with overall survival?
 
-        **2. Machine Learning**
-        Can 5-year survival be predicted from multimodal data (clinical + genomic)?
-        """)
+**2. Machine Learning**  
+Can death before 5 years be predicted from multimodal data (clinical + genomic)?
+""")
 
         st.markdown("<div class='section-header'>Pipeline</div>", unsafe_allow_html=True)
         steps = {
             "01 EDA": "Exploration, missing values, distributions",
             "02 Preprocessing": "Imputation, encoding, feature selection",
             "03 Kaplan-Meier": "Survival curves by subgroup",
-            "04 Cox": "Multivariate model, hazard ratios",
+            "04 Cox": "Multivariable model, hazard ratios",
             "05 ML": "Random Forest, XGBoost, feature importances"
         }
         for k, v in steps.items():
-            st.markdown(f"**`{k}`** — {v}")
+            st.markdown(f"**`{k}`** - {v}")
 
     with col_right:
         st.markdown("<div class='section-header'>Cohort distribution</div>", unsafe_allow_html=True)
@@ -309,17 +309,17 @@ if page == "🏠 Home":
 
         st.markdown("""
         <div class='insight-box'>
-        ER+ is the majority (~77%) — consistent with breast cancer epidemiology.
-        This is a mature cohort: median follow-up 9.6 years, max 29.6 years.
+        ER+ is the majority (~77%) - consistent with breast cancer epidemiology.
+        This is a mature cohort: median observed time 9.6 years, max 29.6 years.
         </div>
         """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════
-# PAGE 2 — SURVIVAL ANALYSIS
+# PAGE 2 - SURVIVAL ANALYSIS
 # ══════════════════════════════════════════════════════════════════════════
 elif page == "📈 Survival Analysis":
     require_data()
-    st.markdown("# Survival Analysis — Kaplan-Meier")
+    st.markdown("# Survival Analysis - Kaplan-Meier")
     st.markdown("Compare survival curves between clinical subgroups.")
     st.markdown("---")
 
@@ -414,7 +414,7 @@ elif page == "📈 Survival Analysis":
         p_text = f"p = {p_val:.2e}"
 
     fig.update_layout(
-        title=f"KM Curves — {variable}  |  Log-rank {p_text}",
+        title=f"KM Curves - {variable}  |  Log-rank {p_text}",
         xaxis_title="Time (months)",
         yaxis_title="Survival probability",
         yaxis_range=[0, 1],
@@ -431,37 +431,45 @@ elif page == "📈 Survival Analysis":
 
     # Dynamic interpretations
     interpretations = {
-        "ER Status": """
-        <b>p=0.02</b> — Significant difference. The curves converge/cross late
-        (roughly 150–200 months; the visual crossing time is imprecise):
-        a late-relapse phenomenon in ER+ patients, well documented in METABRIC.
-        The proportional hazards assumption is violated for this variable.
-        """,
-        "HER2 Status": """
-        <b>p=2.22e-05</b> — Highly significant difference. HER2+ (n=236):
-        markedly worse prognosis. Consistent with a pre-trastuzumab cohort
-        where anti-HER2 therapies were not yet standardized.
-        """,
-        "PR Status": """
-        <b>p=7.45e-05</b> — Highly significant difference. PR+ patients survive
-        better in the short and medium term. The curves converge without crossing →
-        proportional hazards holds → good candidate for Cox regression.
-        """,
-        "Histologic Grade": """
-        Survival gradient Grade 1 > Grade 2 > Grade 3 — consistent with clinical expectations.
-        Grade 3 (poorly differentiated tumors): early and rapid decline.
-        """,
-        "Chemotherapy": """
-        <b>Indication bias</b>: chemotherapy is prescribed for the most aggressive tumors
-        → treated patients have a worse baseline prognosis. This result
-        cannot be interpreted causally without multivariate adjustment (Cox).
-        """,
-        "Hormone Therapy": """
-        <b>Reverse indication bias</b>: hormone therapy is prescribed to ER+ patients
-        who have a better baseline prognosis. The treatment's true effect
-        can only be isolated using the multivariate Cox model.
-        """
-    }
+    "ER Status": (
+        "**p = 0.02** - Significant difference. The curves converge/cross late "
+        "(roughly 150–200 months; the visual crossing time is imprecise). "
+        "This pattern suggests that a single constant hazard ratio may not "
+        "adequately describe the ER association over the full follow-up period."
+    ),
+
+    "HER2 Status": (
+        "**p = 2.22e-05** - Significant difference between the HER2 groups. "
+        "HER2-positive patients show lower estimated survival over much of the "
+        "follow-up period."
+    ),
+
+    "PR Status": (
+        "**p = 7.45e-05** - Significant difference between the PR groups. "
+        "PR-positive patients show higher estimated survival over much of the "
+        "follow-up period, although the curves converge later in follow-up."
+    ),
+
+    "Histologic Grade": (
+        "Survival differs across histologic grades, with lower estimated survival "
+        "for higher-grade tumors. This analysis is exploratory because grade is "
+        "also incorporated into the Nottingham Prognostic Index used in the Cox analysis."
+    ),
+
+    "Chemotherapy": (
+        "Patients receiving chemotherapy show different survival from untreated "
+        "patients. This association must not be interpreted as a causal treatment "
+        "effect because treatment allocation is related to disease characteristics "
+        "and prognosis."
+    ),
+
+    "Hormone Therapy": (
+        "Survival differs according to hormone-therapy status. This observational "
+        "association must not be interpreted as a causal treatment effect because "
+        "treatment allocation depends on tumor characteristics, particularly "
+        "hormone-receptor status."
+    )
+}
 
     st.markdown(f"""
     <div class='insight-box'>
@@ -470,141 +478,488 @@ elif page == "📈 Survival Analysis":
     """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════
-# PAGE 3 — ML PREDICTION
+# PAGE 3 - ML PREDICTION
 # ══════════════════════════════════════════════════════════════════════════
+
 elif page == "🤖 ML Prediction":
-    st.markdown("# Prediction — 5-Year Survival")
-    st.markdown("Enter a patient's profile to estimate their 5-year survival probability.")
+
+    st.markdown("# Prediction - 5-Year Mortality Risk")
+
+    st.markdown(
+        "Enter a patient's profile to estimate the predicted "
+        "probability of death before 5 years."
+    )
+
     st.markdown("---")
 
     col_inputs, col_result = st.columns([1, 1])
 
+
+    # ──────────────────────────────────────────────────────────────────────
+    # INPUTS
+    # ──────────────────────────────────────────────────────────────────────
+
     with col_inputs:
-        st.markdown("<div class='section-header'>Clinical profile</div>", unsafe_allow_html=True)
 
-        age = st.slider("Age at diagnosis", 20, 95, 55)
-        tumor_size = st.slider("Tumor size (mm)", 1, 150, 25)
-        lymph_nodes = st.slider("Positive lymph nodes", 0, 20, 0)
-        grade = st.selectbox("Histologic grade", [1, 2, 3], index=1)
-        mutation_count = st.slider("Mutation count", 0, 30, 5)
+        st.markdown(
+            "<div class='section-header'>Clinical profile</div>",
+            unsafe_allow_html=True
+        )
 
-        st.markdown("<div class='section-header'>Biomarkers</div>", unsafe_allow_html=True)
-        er = st.radio("ER Status", ["Positive", "Negative"], horizontal=True)
-        pr = st.radio("PR Status", ["Positive", "Negative"], horizontal=True)
-        her2 = st.radio("HER2 Status", ["Negative", "Positive"], horizontal=True)
+        age = st.slider(
+            "Age at diagnosis",
+            20,
+            95,
+            55
+        )
 
-        st.markdown("<div class='section-header'>Treatments</div>", unsafe_allow_html=True)
-        chemo = st.checkbox("Chemotherapy")
-        hormone = st.checkbox("Hormone therapy")
-        radio = st.checkbox("Radiotherapy")
+        tumor_size = st.slider(
+            "Tumor size (mm)",
+            1,
+            150,
+            25
+        )
+
+        lymph_nodes = st.slider(
+            "Positive lymph nodes",
+            0,
+            20,
+            0
+        )
+
+        grade = st.selectbox(
+            "Histologic grade",
+            [1, 2, 3],
+            index=1
+        )
+
+        mutation_count = st.slider(
+            "Mutation count",
+            0,
+            30,
+            5
+        )
+
+
+        # Biomarkers
+        st.markdown(
+            "<div class='section-header'>Biomarkers</div>",
+            unsafe_allow_html=True
+        )
+
+        er = st.radio(
+            "ER Status",
+            ["Positive", "Negative"],
+            horizontal=True
+        )
+
+        pr = st.radio(
+            "PR Status",
+            ["Positive", "Negative"],
+            horizontal=True
+        )
+
+        her2 = st.radio(
+            "HER2 Status",
+            ["Negative", "Positive"],
+            horizontal=True
+        )
+
+
+        # Treatments
+        st.markdown(
+            "<div class='section-header'>Treatments</div>",
+            unsafe_allow_html=True
+        )
+
+        chemo = st.checkbox(
+            "Chemotherapy"
+        )
+
+        hormone = st.checkbox(
+            "Hormone therapy"
+        )
+
+        radio = st.checkbox(
+            "Radiotherapy"
+        )
+
+
+    # ──────────────────────────────────────────────────────────────────────
+    # PREDICTION
+    # ──────────────────────────────────────────────────────────────────────
 
     with col_result:
-        st.markdown("<div class='section-header'>Result</div>", unsafe_allow_html=True)
 
-        # The saved sklearn pipeline owns imputation, encoding, scaling and
-        # gene selection. Defaults were learned from the training fold only.
-        input_data = pd.DataFrame([model_bundle["defaults"]], columns=feature_cols)
-        input_data.loc[0, "age_at_diagnosis"] = age
-        input_data.loc[0, "tumor_size"] = np.log1p(tumor_size)
-        input_data.loc[0, "lymph_nodes_examined_positive"] = lymph_nodes
-        input_data.loc[0, "neoplasm_histologic_grade"] = float(grade)
-        input_data.loc[0, "mutation_count"] = np.log1p(mutation_count)
-        input_data.loc[0, "er_status"] = er
-        input_data.loc[0, "pr_status"] = pr
-        input_data.loc[0, "her2_status"] = her2
-        input_data.loc[0, "chemotherapy"] = int(chemo)
-        input_data.loc[0, "hormone_therapy"] = int(hormone)
-        input_data.loc[0, "radio_therapy"] = int(radio)
+        st.markdown(
+            "<div class='section-header'>Result</div>",
+            unsafe_allow_html=True
+        )
 
-        # Prediction
-        # The forest is class-weighted, so its raw probabilities under-estimate survival
-        # (mean about 64% vs 78% observed). A Platt map fitted on out-of-fold training
-        # predictions recalibrates them before they are read as a risk.
-        proba = rf.predict_proba(input_data)[0][1]
-        calibrator = model_bundle.get("calibrator")
+
+        # --------------------------------------------------------------
+        # Patient profile
+        #
+        # The saved sklearn pipeline owns imputation, encoding,
+        # scaling and genomic feature selection.
+        #
+        # Default values were calculated from the training data only.
+        # --------------------------------------------------------------
+
+        input_data = pd.DataFrame(
+            [model_bundle["defaults"]],
+            columns=feature_cols
+        )
+
+        input_data.loc[
+            0,
+            "age_at_diagnosis"
+        ] = age
+
+        input_data.loc[
+            0,
+            "tumor_size"
+        ] = np.log1p(tumor_size)
+
+        input_data.loc[
+            0,
+            "lymph_nodes_examined_positive"
+        ] = lymph_nodes
+
+        input_data.loc[
+            0,
+            "neoplasm_histologic_grade"
+        ] = float(grade)
+
+        input_data.loc[
+            0,
+            "mutation_count"
+        ] = np.log1p(mutation_count)
+
+        input_data.loc[
+            0,
+            "er_status"
+        ] = er
+
+        input_data.loc[
+            0,
+            "pr_status"
+        ] = pr
+
+        input_data.loc[
+            0,
+            "her2_status"
+        ] = her2
+
+        input_data.loc[
+            0,
+            "chemotherapy"
+        ] = int(chemo)
+
+        input_data.loc[
+            0,
+            "hormone_therapy"
+        ] = int(hormone)
+
+        input_data.loc[
+            0,
+            "radio_therapy"
+        ] = int(radio)
+
+
+        # --------------------------------------------------------------
+        # Predicted 5-year mortality probability
+        #
+        # Target:
+        # 1 = death before 5 years
+        # 0 = survived at least 5 years
+        # --------------------------------------------------------------
+
+        mortality_probability = (
+            rf.predict_proba(
+                input_data
+            )[0][1]
+        )
+
+
+        # --------------------------------------------------------------
+        # Optional Platt calibration
+        #
+        # The calibrator was trained exclusively from out-of-fold
+        # predictions generated within the training set.
+        # --------------------------------------------------------------
+
+        calibrator = model_bundle.get(
+            "calibrator"
+        )
+
         if calibrator is not None:
-            clipped = float(np.clip(proba, 1e-4, 1 - 1e-4))
-            proba = calibrator.predict_proba([[np.log(clipped / (1 - clipped))]])[0][1]
-        pct = int(proba * 100)
 
-        # 5-year survival is the majority outcome (~78% of the cohort): compare with that base rate
-        BASE_RATE = 0.777
-        favorable = proba >= BASE_RATE
-        css_class = "pred-high" if favorable else "pred-low"
-        color = "#50c878" if favorable else "#e05555"
-        verdict = "Above cohort average (78%)" if favorable else "Below cohort average (78%)"
+            clipped = float(
+                np.clip(
+                    mortality_probability,
+                    1e-4,
+                    1 - 1e-4
+                )
+            )
 
-        st.markdown(f"""
-        <div class='{css_class}'>
-            <div class='pred-value' style='color:{color}'>{pct}%</div>
-            <div style='color:{color}; font-size:0.9rem; margin-top:8px; font-weight:500'>
-                {verdict}
-            </div>
-            <div style='color:#5a6a7a; font-size:0.78rem; margin-top:6px'>
-                5-year survival probability
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+            logit_probability = np.log(
+                clipped
+                / (1 - clipped)
+            )
 
+            mortality_probability = (
+                calibrator.predict_proba(
+                    [[logit_probability]]
+                )[0][1]
+            )
+
+
+        mortality_pct = int(
+            mortality_probability * 100
+        )
+
+
+        # --------------------------------------------------------------
+        # Cohort reference
+        #
+        # Approximately 22.3% of evaluable patients experienced
+        # death before 5 years.
+        #
+        # This comparison is descriptive only and is NOT a clinical
+        # decision threshold.
+        # --------------------------------------------------------------
+
+        BASE_MORTALITY_RATE = 0.223
+
+        above_average_risk = (
+            mortality_probability
+            >= BASE_MORTALITY_RATE
+        )
+
+
+        css_class = (
+            "pred-low"
+            if above_average_risk
+            else "pred-high"
+        )
+
+        color = (
+            "#e05555"
+            if above_average_risk
+            else "#50c878"
+        )
+
+        verdict = (
+            "Above cohort-average mortality risk"
+            if above_average_risk
+            else "Below cohort-average mortality risk"
+        )
+
+
+        # --------------------------------------------------------------
+        # Prediction card
+        # --------------------------------------------------------------
+
+        st.markdown(
+            f"""<div class='{css_class}'>
+<div class='pred-value' style='color:{color}'>{mortality_pct}%</div>
+<div style='color:{color}; font-size:0.9rem; margin-top:8px; font-weight:500'>{verdict}</div>
+<div style='color:#5a6a7a; font-size:0.78rem; margin-top:6px'>Predicted probability of death before 5 years</div>
+</div>""",
+            unsafe_allow_html=True
+        )
+
+
+        # --------------------------------------------------------------
         # Gauge
-        fig_gauge = go.Figure(go.Indicator(
-            mode="gauge+number",
-            value=pct,
-            domain={"x": [0, 1], "y": [0, 1]},
-            number={"suffix": "%", "font": {"color": color, "size": 36}},
-            gauge={
-                "axis": {"range": [0, 100], "tickcolor": "#5a6a7a"},
-                "bar": {"color": color},
-                "bgcolor": "#161b27",
-                "bordercolor": "#1e2d40",
-                "steps": [
-                    {"range": [0, 40], "color": "#2b0d0d"},
-                    {"range": [40, 60], "color": "#1f1a0d"},
-                    {"range": [60, 100], "color": "#0d2b1a"}
-                ],
-                "threshold": {
-                    "line": {"color": "white", "width": 2},
-                    "thickness": 0.8,
-                    "value": 50
+        # --------------------------------------------------------------
+
+        fig_gauge = go.Figure(
+            go.Indicator(
+                mode="gauge+number",
+
+                value=mortality_pct,
+
+                domain={
+                    "x": [0, 1],
+                    "y": [0, 1]
+                },
+
+                number={
+                    "suffix": "%",
+                    "font": {
+                        "color": color,
+                        "size": 36
+                    }
+                },
+
+                title={
+                    "text": "5-Year Mortality Risk"
+                },
+
+                gauge={
+                    "axis": {
+                        "range": [0, 100],
+                        "tickcolor": "#5a6a7a"
+                    },
+
+                    "bar": {
+                        "color": color
+                    },
+
+                    "bgcolor": "#161b27",
+
+                    "bordercolor": "#1e2d40",
+
+    
+
+                    # Cohort mortality prevalence shown only
+                    # as a descriptive reference.
+                    "threshold": {
+                        "line": {
+                            "color": "white",
+                            "width": 2
+                        },
+                        "thickness": 0.8,
+                        "value": (
+                            BASE_MORTALITY_RATE
+                            * 100
+                        )
+                    }
                 }
-            }
-        ))
+            )
+        )
+
+
         fig_gauge.update_layout(
             paper_bgcolor="rgba(0,0,0,0)",
             font_color="#c8d6e8",
-            height=220,
-            margin=dict(t=20, b=0, l=20, r=20)
+            height=240,
+            margin=dict(
+                t=45,
+                b=0,
+                l=20,
+                r=20
+            )
         )
-        st.plotly_chart(fig_gauge, use_container_width=True)
 
-        st.markdown(f"""
-        <div class='warning-box'>
-        ⚠️ <b>Educational use only.</b> This model is trained on historical
-        data (METABRIC, 2000-2010) and is not a clinical decision-making tool.
-        ROC-AUC = {model_bundle['metrics']['roc_auc']:.3f}
-        (bootstrap 95% CI {model_bundle['metrics']['roc_auc_95_ci'][0]:.3f}–{model_bundle['metrics']['roc_auc_95_ci'][1]:.3f})
-        on the held-out test set.
-        </div>
-        """, unsafe_allow_html=True)
+        st.plotly_chart(
+            fig_gauge,
+            use_container_width=True
+        )
 
-        # Top 5 feature importances
-        st.markdown("<div class='section-header'>Top 5 factors (global model)</div>", unsafe_allow_html=True)
-        importances = model_bundle["feature_importances"]
-        top5 = importances.sort_values(ascending=False).head(5)
 
-        fig_imp = go.Figure(go.Bar(
-            x=top5.values[::-1],
-            y=top5.index[::-1],
-            orientation="h",
-            marker_color=["#4a9eff"] * 5
-        ))
+        # --------------------------------------------------------------
+        # Interpretation note
+        # --------------------------------------------------------------
+
+        st.markdown(
+            """
+            <div class='insight-box'>
+
+            The white marker represents the approximate
+            <b>5-year mortality rate of the modeling cohort (~22%)</b>.
+
+            The predicted probability is a model estimate and should
+            not be interpreted as an individual clinical prognosis
+            or treatment recommendation.
+
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+
+        # --------------------------------------------------------------
+        # Model-performance warning
+        # --------------------------------------------------------------
+
+        st.markdown(
+            f"""
+            <div class='warning-box'>
+
+            ⚠️ <b>Educational use only.</b>
+
+            This model was developed using historical METABRIC data
+            and has not been externally validated for clinical use.
+
+            Held-out Random Forest ROC-AUC =
+            {model_bundle['metrics']['roc_auc']:.3f}
+
+            (bootstrap 95% CI
+            {model_bundle['metrics']['roc_auc_95_ci'][0]:.3f}–
+            {model_bundle['metrics']['roc_auc_95_ci'][1]:.3f}).
+
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+
+        # --------------------------------------------------------------
+        # Global feature importances
+        # --------------------------------------------------------------
+
+        st.markdown(
+            "<div class='section-header'>"
+            "Top 5 factors (global model)"
+            "</div>",
+            unsafe_allow_html=True
+        )
+
+        importances = (
+            model_bundle[
+                "feature_importances"
+            ]
+        )
+
+        top5 = (
+            importances
+            .sort_values(
+                ascending=False
+            )
+            .head(5)
+        )
+
+
+        fig_imp = go.Figure(
+            go.Bar(
+                x=top5.values[::-1],
+                y=top5.index[::-1],
+                orientation="h",
+                marker_color=[
+                    "#4a9eff"
+                ] * 5
+            )
+        )
+
+
         fig_imp.update_layout(
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
             font_color="#8892a4",
-            xaxis=dict(gridcolor="#1e2d40"),
-            yaxis=dict(gridcolor="rgba(0,0,0,0)"),
+
+            xaxis=dict(
+                gridcolor="#1e2d40"
+            ),
+
+            yaxis=dict(
+                gridcolor="rgba(0,0,0,0)"
+            ),
+
             height=220,
-            margin=dict(t=0, b=0, l=0, r=0)
+
+            margin=dict(
+                t=0,
+                b=0,
+                l=0,
+                r=0
+            )
         )
-        st.plotly_chart(fig_imp, use_container_width=True)
+
+
+        st.plotly_chart(
+            fig_imp,
+            use_container_width=True
+        )

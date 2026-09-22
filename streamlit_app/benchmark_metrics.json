@@ -1,23 +1,25 @@
 [
   {
     "model":"XGBoost",
-    "test_auc":0.7819325232,
-    "auc_ci_low":0.7285175641,
-    "auc_ci_high":0.8329659123,
-    "accuracy":0.7859078591,
-    "brier":0.1441610903,
-    "survivor_recall":0.93728223,
-    "death_recall":0.256097561
+    "test_auc":0.7215517974,
+    "auc_ci_low":0.6558041073,
+    "auc_ci_high":0.7832232988,
+    "accuracy":0.7723577236,
+    "brier":0.1540876925,
+    "death_recall":0.2195121951,
+    "death_precision":0.4736842105,
+    "survivor_recall":0.9303135889
   },
   {
     "model":"Random Forest",
-    "test_auc":0.758477097,
-    "auc_ci_low":0.6955198289,
-    "auc_ci_high":0.8161905257,
-    "accuracy":0.783197832,
-    "brier":0.1655019936,
-    "survivor_recall":0.8606271777,
-    "death_recall":0.512195122
+    "test_auc":0.6935922495,
+    "auc_ci_low":0.6271984295,
+    "auc_ci_high":0.7554708031,
+    "accuracy":0.7371273713,
+    "brier":0.1778950152,
+    "death_recall":0.4024390244,
+    "death_precision":0.4074074074,
+    "survivor_recall":0.8327526132
   },
   {
     "model":"Dummy",
@@ -26,7 +28,8 @@
     "auc_ci_high":0.5,
     "accuracy":0.7777777778,
     "brier":0.172841776,
-    "survivor_recall":1.0,
-    "death_recall":0.0
+    "death_recall":0.0,
+    "death_precision":0.0,
+    "survivor_recall":1.0
   }
 ]
