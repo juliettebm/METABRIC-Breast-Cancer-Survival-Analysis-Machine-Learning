@@ -376,78 +376,100 @@ Accuracy is not used as the primary performance measure because approximately 78
 | Model | ROC-AUC | Accuracy | Death recall | Survivor recall |
 |---|---:|---:|---:|---:|
 | **Random Forest (deployed, tuned)** | **0.694** | **74%** | **40%** | **83%** |
-| XGBoost (benchmark) | 0.722 | 77% | 93% | 22% |
+| XGBoost (benchmark) | 0.722 | 77% | 22% | 93% |
 
 ---
 
-# Robustness Checks
+# **Robustness Checks**
 
-`python robustness_checks.py` (code in `src/metabric/robustness.py`) refits the same leakage-free pipeline and writes `reports/robustness_metrics.json` and `figures/06_calibration.png`. The deployed model is not modified. These checks answer the usual objections to the numbers above; all remain internal to one cohort.
+`python robustness_checks.py` (code in `src/metabric/robustness.py`) refits the selected Random Forest configuration (`class_weight="balanced"`, `min_samples_leaf=3`) within the leakage-controlled predictive pipeline and writes `reports/robustness_metrics.json` and `figures/06_calibration.png`. The deployed model is not modified. All robustness analyses remain internal to METABRIC.
 
 | Check | Result |
 |---|---|
-| **Label-permutation test** (20 permutations of the training labels, whole pipeline refitted) | Permuted AUC averages 0.494 (range 0.387–0.602) against 0.758 for the real labels. The empirical p-value is 0.048, which is the minimum achievable with 20 permutations. No sign of leakage. |
-| **Split variability** (20 stratified 80/20 splits, 200 trees) | AUC 0.755 ± 0.024 (min 0.710, max 0.791): the single-split bootstrap interval understates the split-to-split spread, and explains why the deployed 369-patient test split above (0.694) differs from this mean — the label was recoded from "survived" to "died" for clarity, which shifted which patients scikit-learn's stratified split assigns to the held-out fold, without changing typical model performance. |
-| **Horizon sensitivity** (120 months) | 1,648 patients with an observable 10-year status (55.2% alive); test AUC 0.718 against 0.758 at 5 years. |
-| **Selection bias of the 5-year cohort** | The 60 patients censored before 60 months (excluded) have a mean age of 58.1 vs 61.2 years, 43.3% vs 48.9% grade 3, 73.3% vs 76.7% ER-positive. Descriptive only (no test, small group): no large imbalance, but independence of censoring is not proven. |
-| **Cox C-index** | Apparent 0.674; 5-fold cross-validated 0.673 ± 0.016. The 0.67 reported above is therefore not inflated by overfitting. |
-| **Cox stratified on ER** (handles the proportional-hazards violation) | Apparent C-index 0.680, cross-validated 0.669: stratification fixes the assumption without improving discrimination. |
+| **Label-permutation test** | With the true labels, ROC-AUC was 0.694. Across 20 label permutations, mean ROC-AUC was 0.509 (range 0.443–0.602). The empirical p-value was 0.048, the minimum attainable with 20 permutations using the correction applied here. |
+| **Split variability** | Across 20 stratified 80/20 splits, Random Forest ROC-AUC was **0.756 ± 0.029**, ranging from **0.675 to 0.804**. The deployed split (ROC-AUC 0.694) lies toward the lower end of the observed split-to-split variability. |
+| **Horizon sensitivity** | At a 120-month horizon, 1,648 patients had observable outcome status, with 44.8% deaths before the horizon. Test ROC-AUC was **0.722**. |
+| **Selection of the 5-year cohort** | The 60 patients censored before 60 months and therefore excluded had a mean age of 58.1 vs 61.2 years in retained patients, 43.3% vs 48.9% grade 3 tumors, and 73.3% vs 76.7% ER-positive tumors. These comparisons are descriptive and do not establish independent censoring. |
+| **Cox C-index** | Apparent C-index was 0.674 and 5-fold cross-validated C-index was **0.673 ± 0.016**. |
+| **Cox stratified on ER** | Apparent C-index was 0.680 and cross-validated C-index was 0.669. |
 
-**Model comparison, Random Forest vs XGBoost** (same leakage-free preprocessing, 20 stratified splits, paired differences; XGBoost uses the notebook's untuned settings, the forest uses 200 trees here):
+### **Random Forest vs XGBoost across repeated splits**
 
-| Metric (mean over 20 splits) | Random Forest | XGBoost | Paired difference (XGBoost − RF) | Splits won by XGBoost |
-|---|---|---|---|---|
-| ROC-AUC | 0.755 | 0.745 | -0.010 ± 0.017 | 4/20 |
-| Brier score (lower is better) | 0.166 | 0.151 | -0.016 ± 0.005 | 20/20 |
-| Death recall at threshold 0.5 | 44.6% | 23.4% | -21.3% | 0/20 |
-| Share of patients flagged at 0.5 | 20.9% | 9.8% | -11.1% | 0/20 |
-| Death recall when flagging the top 22% | 46.8% | 46.0% | -0.8% | 4/20 |
-| Death precision at 80% recall | 36.0% | 34.8% | -1.2% | 8/20 |
+The two classifiers were compared over 20 identical stratified train/test splits using the same leakage-controlled preprocessing. The Random Forest used the selected `class_weight="balanced"` and `min_samples_leaf=3` configuration, while XGBoost used its selected unweighted configuration.
 
-Averaged over 20 splits, discrimination is essentially a tie between the two algorithms (0.755 vs 0.745, within one standard deviation). At the default threshold XGBoost flags about half as many patients, which explains its lower death recall; when both flag the same share of patients, recalls are equivalent. XGBoost's only consistent advantage is the *raw* Brier score, and it disappears once both models are recalibrated (see Calibration below). Neither model was tuned exhaustively, so these are comparisons of two reasonable configurations, not of the best achievable models.
+| Metric | Random Forest | XGBoost |
+|---|---:|---:|
+| Mean ROC-AUC | **0.756** | **0.760** |
+| Mean Brier score | 0.167 | 0.147 |
+| Death recall at threshold 0.5 | 48.4% | 27.5% |
+| Patients flagged at threshold 0.5 | 22.6% | 11.0% |
+| Precision at 50% recall | 48.0% | 48.9% |
+| Precision at 80% recall | 35.2% | 35.7% |
+| Recall when flagging the observed mortality share | 47.7% | 48.1% |
 
-**Decision threshold** (test set, death = positive class; deployed default is 0.5):
+The mean ROC-AUC difference was small (**+0.004 for XGBoost**) and varied across splits; XGBoost had the higher ROC-AUC in 14 of 20 splits. At threshold 0.5, the class-weighted Random Forest had higher death recall but flagged a larger proportion of patients. At a matched flagged share corresponding approximately to the observed mortality prevalence, mean recall was nearly identical (47.7% vs 48.1%). These results do not establish superiority of either algorithm.
+
+### **Decision-threshold sensitivity**
+
+For the class-weighted Random Forest fitted on the same split used by the robustness script:
 
 | Death-probability threshold | Death recall | Death precision | Patients flagged |
-|---|---|---|---|
-| 0.2 | 92.7% | 26.1% | 78.9% |
-| 0.3 | 81.7% | 33.0% | 55.0% |
-| 0.4 | 69.5% | 40.4% | 38.2% |
-| **0.5 (default)** | **51.2%** | **51.2%** | **22.2%** |
-| 0.6 | 22.0% | 56.3% | 8.7% |
+|---|---:|---:|---:|
+| 0.2 | 92.7% | 26.3% | 78.3% |
+| 0.3 | 74.4% | 29.3% | 56.4% |
+| 0.4 | 58.5% | 35.0% | 37.1% |
+| **0.5** | **40.2%** | **40.7%** | **22.0%** |
+| 0.6 | 25.6% | 47.7% | 11.9% |
 
-The 51% death recall shown in this table is a property of the threshold, not of the ranking (AUC is threshold-free): lowering it to 0.3 detects 82% of deaths at the price of 33% precision. The right threshold depends on the cost of a missed death versus a false alarm and has not been chosen here.
+These threshold-specific results illustrate that recall and precision depend strongly on the selected operating point. No threshold has been clinically validated or optimized for deployment.
 
-**Calibration** (`figures/06_calibration.png`). The raw class-weighted forest is miscalibrated: over 20 splits it predicts death with calibration intercept -0.67, slope 1.23 on the death logit (raw XGBoost is closer to intercept -0.20 but over-confident at slope 0.73). This is consistent with `class_weight="balanced"` shifting probabilities towards the minority class (not tested in isolation).
+### **Calibration**
 
-Both models were recalibrated identically (Platt scaling and isotonic regression fitted on a calibration fold held out from the training data; the test fold is untouched), over 20 splits:
+Calibration was evaluated over 20 repeated splits using a separate calibration subset drawn from each training set, leaving the corresponding test fold untouched.
 
-| Brier score (mean ± sd over 20 splits) | Random Forest | XGBoost | Paired difference (XGBoost − RF) | Splits won by XGBoost |
-|---|---|---|---|---|
-| Raw | 0.169 ± 0.006 | 0.152 ± 0.007 | -0.017 ± 0.006 | 20/20 |
-| Platt | 0.151 ± 0.004 | 0.150 ± 0.006 | -0.000 ± 0.005 | 10/20 |
-| Isotonic | 0.155 ± 0.006 | 0.154 ± 0.007 | -0.001 ± 0.005 | 13/20 |
+For the Random Forest:
 
-After recalibration the two models are indistinguishable; the raw XGBoost advantage came entirely from the forest's miscalibration. Platt scaling is strictly monotone, so AUC is unchanged. **The deployed model is therefore the Random Forest with a Platt calibrator** fitted on out-of-fold training predictions (`train_model.py`). On the specific 369-patient test split behind the deployed artifact, this brings the Brier score to 0.160 (raw 0.178); calibration on that single split is weaker than the 20-split average above (slope 0.67, intercept -0.37 vs the ~1.0/0.0 target), which is consistent with the split-variability finding above rather than a new miscalibration mechanism. Calibration is internal to one cohort and one split: it must be re-checked on any external data.
+| Metric | Raw | Platt recalibrated |
+|---|---:|---:|
+| Mean Brier score | 0.1694 | 0.1498 |
+| Mean calibration slope | 1.241 | 0.979 |
+| Mean calibration intercept | -0.684 | -0.036 |
+| Mean predicted 5-year mortality | 35.9% | 22.5% |
 
-**Survival model vs 5-year classifier** (penalised Cox, 20 stratified splits of the full cohort, paired differences). The Cox model is trained on all patients, censored ones included, using duration and censoring; the classifier is trained on the patients whose 5-year status is known (the 60 patients censored before 60 months are excluded, as in `train_model.py`). Both are evaluated on the same test patients, with the same leakage-free preprocessing (gene selection fitted on the training part only; the Cox model selects genes against the death indicator because the 5-year label does not exist for censored patients). The Cox penalty (0.05, 0.2, 1.0) is chosen by 3-fold cross-validated C-index inside each training set.
+Mean observed 5-year mortality was **22.2%**.
 
-| Metric (mean ± sd over 20 splits) | 5-year classifier | Penalised Cox | Paired difference (Cox − classifier) | Splits won by Cox |
-|---|---|---|---|---|
-| AUC at 5 years (test patients with a known 5-year status) | 0.747 ± 0.023 | 0.709 ± 0.033 | -0.038 ± 0.027 | 2/20 |
-| C-index (all test patients, censored included) | 0.656 ± 0.019 | 0.669 ± 0.020 | +0.014 ± 0.017 | 15/20 |
+For XGBoost, mean Brier score changed from 0.1503 to 0.1490 after Platt recalibration, while mean calibration slope changed from 0.761 to 1.022.
 
-Keeping the censored patients does **not** improve 5-year discrimination: the Cox model is clearly worse at the 5-year AUC (it models the whole follow-up rather than the 5-year outcome). It ranks patients slightly better over the full follow-up (C-index), which is what a survival model is designed for. This gives no evidence that excluding the 60 censored patients biases the classifier, but it does not prove that censoring is independent of the outcome. The Cox model was not tuned beyond its penalty, and its gene selection is disadvantaged by the missing 5-year label, so it is a fair benchmark, not an upper bound.
+The class-weighted Random Forest substantially overestimated absolute 5-year mortality before recalibration on average across these repeated splits. Platt recalibration reduced mean Brier score from 0.1694 to 0.1498, moved mean predicted mortality from 35.9% to 22.5% compared with 22.2% observed mortality, and moved the mean calibration slope and intercept closer to the ideal values of 1 and 0. These results support recalibration of the class-weighted model, while remaining an internal assessment within METABRIC.
 
-**ER over time** (`er_over_time` in `robustness.py`; 1,815 patients with complete covariates). ER violates the proportional-hazards assumption (Schoenfeld test on the adjusted Cox model, p = 7.6e-12). The Kaplan-Meier curves of ER-positive and ER-negative patients cross at **175 months** (bootstrap 95% interval 146–224, 1,000 resamples; crossings before 24 months are ignored because the curves are then almost identical). At that time 389 ER-positive and 113 ER-negative patients are still at risk, which explains the wide interval. Hazard ratios of ER-positive vs ER-negative by follow-up period (patients still alive at the start of each window; adjusted for age, tumor size, positive nodes, grade and HER2):
+The deployed Random Forest uses a Platt calibrator fitted from out-of-fold training predictions. On its specific 369-patient held-out test set, recalibration reduces the Brier score from 0.178 to 0.160 and mean predicted mortality from 35.4% to 22.6%, compared with 22.2% observed mortality. Calibration on that individual split remains imperfect and should not be interpreted as external validation.
 
-| Follow-up period | Patients at start | Deaths | HR unadjusted (95% CI) | HR adjusted (95% CI) | p (adjusted) |
-|---|---|---|---|---|---|
-| 0–60 months | 1815 | 398 | 0.38 (0.31–0.46) | 0.42 (0.33–0.53) | <0.001 |
-| 60–120 months | 1361 | 306 | 1.39 (1.01–1.91) | 1.20 (0.85–1.70) | 0.311 |
-| After 120 months | 861 | 337 | 2.23 (1.58–3.15) | 1.58 (1.09–2.29) | 0.016 |
+### **Survival model vs 5-year classifier**
 
-ER-positive status is strongly protective during the first five years and adverse after ten years (late relapses). Because these effects have opposite signs, the single hazard ratio of the overall multivariate model is close to 1 and not significant. This is a descriptive analysis: each window conditions on survival to its start, so hazard ratios in later windows compare survivors and are not causal.
+A penalized Cox model was compared with the fixed-horizon classifier across 20 splits. Cox retains censored patients and models the complete follow-up, whereas the classifier is trained only on patients whose 5-year outcome is observable.
+
+| Metric (mean ± SD) | 5-year classifier | Penalized Cox |
+|---|---:|---:|
+| 5-year ROC-AUC | **0.747 ± 0.023** | **0.709 ± 0.033** |
+| C-index over complete follow-up | **0.656 ± 0.019** | **0.669 ± 0.020** |
+
+The classifier had higher 5-year ROC-AUC in 18 of 20 splits, whereas Cox had the higher full-follow-up C-index in 15 of 20 splits. These metrics address different prediction objectives: fixed-horizon discrimination versus ranking of survival times under censoring. The comparison therefore supports using the two approaches as complementary analyses rather than treating either metric as an overall model ranking.
+
+### **ER association over time**
+
+ER status showed strong evidence of non-proportional hazards in the adjusted Cox analysis (Schoenfeld p = 7.6e-12).
+
+The estimated ER-positive and ER-negative Kaplan–Meier curves crossed at approximately **175 months**. Across 1,000 bootstrap samples, the crossing-time interval was approximately **146–224 months**. At the estimated crossing time, 389 ER-positive and 113 ER-negative patients remained at risk.
+
+| Follow-up period | Patients at start | Deaths | Adjusted HR for ER+ | 95% CI | p-value |
+|---|---:|---:|---:|---:|---:|
+| 0–60 months | 1,815 | 398 | 0.42 | 0.33–0.53 | <0.001 |
+| 60–120 months | 1,361 | 306 | 1.20 | 0.85–1.70 | 0.311 |
+| >120 months | 861 | 337 | 1.58 | 1.09–2.29 | 0.016 |
+
+These period-specific associations are descriptive. Later intervals condition on patients remaining under observation and at risk at the beginning of the interval, and the estimates must not be interpreted causally.
+
+---
 
 ---
 
