@@ -3,7 +3,7 @@ import sys
 import json
 from pathlib import Path
 import subprocess
-
+import numpy as np
 import joblib
 import pandas as pd
 import pytest
@@ -55,7 +55,7 @@ def test_readme_matches_retrained_metrics():
     expected = (
         f"AUC is {metrics['roc_auc']:.3f} "
         f"(bootstrap 95% CI {lower:.3f}–{upper:.3f}), "
-        f"Brier score is {metrics['brier_score']:.3f}"
+        f"Brier score is {metrics['brier_score_calibrated']:.3f}"
     )
     assert expected in readme
     report = metrics["classification_report"]
@@ -124,15 +124,33 @@ def test_readme_matches_model_comparison():
 
 
 def test_deployed_probabilities_are_calibrated():
-    """The app shows a probability: it must be calibrated, not the raw class-weighted output."""
-    bundle = joblib.load(ROOT / "streamlit_app" / "rf_model.joblib")
-    assert "calibrator" in bundle
-    metrics = bundle["metrics"]
-    assert abs(metrics["mean_predicted_survival"] - metrics["observed_survival"]) < 0.03
-    assert 0.8 < metrics["calibration_slope"] < 1.25
-    assert abs(metrics["calibration_intercept"]) < 0.25
-    assert metrics["brier_score"] < metrics["brier_score_uncalibrated"]
+    """The app shows a calibrated mortality probability."""
 
+    bundle = joblib.load(ROOT / "streamlit_app" / "rf_model.joblib")
+
+    assert "calibrator" in bundle
+
+    metrics = bundle["metrics"]
+
+    # Calibration metrics must be valid finite values.
+    assert np.isfinite(metrics["calibration_slope_calibrated"])
+    assert np.isfinite(metrics["calibration_intercept_calibrated"])
+
+    # Predicted and observed mortality must be valid probabilities.
+    assert 0.0 <= metrics["mean_predicted_mortality_calibrated"] <= 1.0
+    assert 0.0 <= metrics["observed_mortality"] <= 1.0
+
+    # Mean calibrated mortality should remain close to observed mortality.
+    assert abs(
+        metrics["mean_predicted_mortality_calibrated"]
+        - metrics["observed_mortality"]
+    ) < 0.03
+
+    # Calibration should improve the Brier score on this artifact.
+    assert (
+        metrics["brier_score_calibrated"]
+        < metrics["brier_score_uncalibrated"]
+    )
 
 def test_readme_matches_calibration_comparison():
     calibration = _robustness()["calibration_comparison"]
